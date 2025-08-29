@@ -1,0 +1,287 @@
+"use client"
+
+import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Mic, BookOpen, MessageCircle, User, Loader2, Play, Clock, ArrowLeft, Filter } from "lucide-react"
+
+interface Purpose {
+  id: string
+  name: string
+  color: string
+}
+
+interface Recording {
+  id: string
+  purpose_id: string
+  purpose_name: string
+  purpose_color: string
+  audio_duration: number
+  created_at: string
+  transcript: string
+  summary: string
+  ai_insights: string
+  audio_url: string
+}
+
+export default function EntriesPage() {
+  const { user, isLoading } = useAuth()
+  const router = useRouter()
+  const [selectedFilter, setSelectedFilter] = useState("all")
+  const [purposes, setPurposes] = useState<Purpose[]>([])
+  const [entries, setEntries] = useState<Recording[]>([])
+  const [isLoadingEntries, setIsLoadingEntries] = useState(true)
+  const [loadingPurposes, setLoadingPurposes] = useState(true)
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/")
+    }
+    if (user?.walletAddress) {
+      fetchPurposes()
+    }
+  }, [user, isLoading, router])
+
+  useEffect(() => {
+    if (user && !loadingPurposes) {
+      fetchEntries()
+    }
+  }, [user, selectedFilter, loadingPurposes])
+
+  const fetchPurposes = async () => {
+    try {
+      const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
+      const data = await response.json()
+      if (response.ok) {
+        setPurposes(data.purposes)
+      }
+    } catch (error) {
+      console.error("Error fetching purposes:", error)
+    } finally {
+      setLoadingPurposes(false)
+    }
+  }
+
+  const fetchEntries = async () => {
+    if (!user) return
+
+    setIsLoadingEntries(true)
+    try {
+      const purposeParam = selectedFilter === "all" ? "" : `&purpose_id=${selectedFilter}`
+      const response = await fetch(`/api/recordings?wallet_address=${user.walletAddress}${purposeParam}`)
+      if (!response.ok) {
+        throw new Error("Failed to fetch entries")
+      }
+
+      const data = await response.json()
+      setEntries(data.recordings || [])
+    } catch (error) {
+      console.error("Error fetching entries:", error)
+      setEntries([])
+    } finally {
+      setIsLoadingEntries(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user) return null
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - date.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 1) return "Today"
+    if (diffDays === 2) return "Yesterday"
+    if (diffDays <= 7) return `${diffDays - 1} days ago`
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="px-4 py-6 border-b border-border">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")} className="h-8 w-8 p-0">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-lg font-bold text-foreground">My Entries</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+              <Mic className="w-3 h-3 text-primary-foreground" />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="px-4 py-6">
+        <div className="max-w-md mx-auto space-y-6">
+          {/* Filter */}
+          <Card className="border-border bg-card">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <h2 className="font-semibold text-card-foreground">Filter by Purpose</h2>
+              </div>
+              {loadingPurposes ? (
+                <div className="flex items-center justify-center py-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+                  <SelectTrigger className="bg-background border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4" />
+                        All Entries
+                      </div>
+                    </SelectItem>
+                    {purposes.map((purpose) => (
+                      <SelectItem key={purpose.id} value={purpose.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: purpose.color }} />
+                          {purpose.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Entries List */}
+          <div className="space-y-4">
+            {isLoadingEntries ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : entries.length === 0 ? (
+              <Card className="border-border bg-card">
+                <CardContent className="p-8 text-center space-y-3">
+                  <BookOpen className="w-12 h-12 text-muted-foreground mx-auto" />
+                  <h3 className="font-semibold text-card-foreground">No entries found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedFilter === "all"
+                      ? "Start recording your first voice diary entry!"
+                      : `No entries found for the selected purpose.`}
+                  </p>
+                  <Button onClick={() => router.push("/dashboard")} className="mt-4">
+                    <Mic className="w-4 h-4 mr-2" />
+                    Record Entry
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              entries.map((entry) => {
+                const entryDate = new Date(entry.created_at)
+                return (
+                  <Card key={entry.id} className="border-border bg-card hover:bg-accent/5 transition-colors">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${entry.purpose_color}20` }}
+                          >
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.purpose_color }} />
+                          </div>
+                          <div>
+                            <Badge variant="secondary" className="text-xs">
+                              {entry.purpose_name}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">{formatDate(entry.created_at)}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDuration(entry.audio_duration)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Transcript Preview */}
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                        {entry.transcript || entry.summary || "Processing..."}
+                      </p>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between pt-2">
+                        <Button variant="ghost" size="sm" className="text-xs">
+                          <Play className="w-3 h-3 mr-1" />
+                          Play
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          {entryDate.toLocaleTimeString("en-US", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+
+          {/* Bottom Navigation */}
+          <div className="grid grid-cols-3 gap-4 pt-4">
+            <Button variant="outline" className="flex flex-col gap-2 h-16 bg-primary/5 border-primary/20">
+              <BookOpen className="w-5 h-5 text-primary" />
+              <span className="text-xs text-primary font-medium">Entries</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col gap-2 h-16 bg-transparent"
+              onClick={() => router.push("/chat")}
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span className="text-xs">Chat</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col gap-2 h-16 bg-transparent"
+              onClick={() => router.push("/profile")}
+            >
+              <User className="w-5 h-5" />
+              <span className="text-xs">Profile</span>
+            </Button>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
