@@ -23,7 +23,7 @@ import {
   Send,
   Bot,
 } from "lucide-react"
-import { checkUsageLimit } from "@/lib/subscription"
+
 
 const purposes = [
   { value: "gratitude", label: "Gratitude", icon: Sparkles },
@@ -102,16 +102,7 @@ export default function ChatPage() {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !selectedPurpose || !user || !sessionId) return
 
-    // Check usage limits
-    try {
-      const limitCheck = await checkUsageLimit(user.id, "chat")
-      if (!limitCheck.allowed) {
-        alert(limitCheck.reason)
-        return
-      }
-    } catch (error) {
-      console.error("Error checking usage limit:", error)
-    }
+    // Usage limits will be checked on the server side in the API route
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -231,7 +222,7 @@ export default function ChatPage() {
                       {purposes.map((purpose) => (
                         <SelectItem key={purpose.value} value={purpose.value}>
                           <div className="flex items-center gap-2">
-                            {purpose.icon({ className: "w-4 h-4" })}
+                            <purpose.icon className="w-4 h-4" />
                             {purpose.label}
                           </div>
                         </SelectItem>
@@ -249,7 +240,10 @@ export default function ChatPage() {
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                      {getPurposeInfo(selectedPurpose).icon({ className: "w-4 h-4 text-primary" })}
+                      {(() => {
+                        const Icon = getPurposeInfo(selectedPurpose).icon
+                        return <Icon className="w-4 h-4 text-primary" />
+                      })()}
                     </div>
                     <div>
                       <p className="font-medium text-card-foreground">{getPurposeInfo(selectedPurpose).label}</p>
@@ -353,29 +347,7 @@ export default function ChatPage() {
             </>
           )}
 
-          {/* Bottom Navigation */}
-          <div className="grid grid-cols-3 gap-4 pt-6">
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/entries")}
-            >
-              <BookOpen className="w-5 h-5" />
-              <span className="text-xs">Entries</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col gap-2 h-16 bg-primary/5 border-primary/20">
-              <MessageCircle className="w-5 h-5 text-primary" />
-              <span className="text-xs text-primary font-medium">Chat</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/profile")}
-            >
-              <User className="w-5 h-5" />
-              <span className="text-xs">Profile</span>
-            </Button>
-          </div>
+          
         </div>
       </main>
     </div>

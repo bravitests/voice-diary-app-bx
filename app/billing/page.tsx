@@ -19,7 +19,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react"
-import { smartContractService } from "@/lib/smart-contract"
+import { usePaymentContract } from "@/hooks/usePaymentContract"
 
 interface SubscriptionStatus {
   tier: "free" | "pro"
@@ -40,10 +40,16 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null)
   const [usage, setUsage] = useState<UsageStats | null>(null)
   const [isUpgrading, setIsUpgrading] = useState(false)
-  const [isCancelling, setIsCancelling] = useState(false)
-  const [contractInitialized, setContractInitialized] = useState(false)
-  const [proPrice, setProPrice] = useState<string>("0.01")
-  const [lastTransactionHash, setLastTransactionHash] = useState<string | null>(null)
+
+  const {
+    purchaseProSubscription,
+    hasActivePro,
+    subscriptionInfo,
+    proPrice,
+    isLoading: contractLoading,
+    error: contractError,
+    contractAddress
+  } = usePaymentContract()
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -53,58 +59,21 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (user) {
-      initializeContract()
       fetchSubscriptionData()
     }
-  }, [user])
-
-  const initializeContract = async () => {
-    try {
-      const initialized = await smartContractService.initialize()
-      setContractInitialized(initialized)
-
-      if (initialized) {
-        const price = await smartContractService.getProPrice()
-        setProPrice(price)
-
-        // Set up event listeners
-        smartContractService.onSubscriptionCreated((event) => {
-          console.log("[v0] Subscription created event:", event)
-          if (event.user.toLowerCase() === user?.walletAddress?.toLowerCase()) {
-            setLastTransactionHash(event.transactionHash)
-            fetchSubscriptionData() // Refresh subscription data
-          }
-        })
-
-        smartContractService.onSubscriptionCancelled((event) => {
-          console.log("[v0] Subscription cancelled event:", event)
-          if (event.user.toLowerCase() === user?.walletAddress?.toLowerCase()) {
-            setLastTransactionHash(event.transactionHash)
-            fetchSubscriptionData() // Refresh subscription data
-          }
-        })
-      }
-    } catch (error) {
-      console.error("Error initializing contract:", error)
-    }
-  }
+  }, [user, hasActivePro, subscriptionInfo])
 
   const fetchSubscriptionData = async () => {
     if (!user) return
 
     try {
-      let isActive = false
-      let contractSubscription = null
-
-      if (contractInitialized && user.walletAddress) {
-        isActive = await smartContractService.isSubscriptionActive(user.walletAddress)
-        contractSubscription = await smartContractService.getUserSubscription(user.walletAddress)
-      }
+      // Use contract data for subscription status
+      const isActive = hasActivePro
 
       setSubscription({
         tier: isActive ? "pro" : "free",
-        expiry: contractSubscription?.endTime?.toISOString() || null,
-        isExpired: !isActive && contractSubscription?.id,
+        expiry: subscriptionInfo?.expiryDate?.toISOString() || null,
+        isExpired: subscriptionInfo?.isExpired || false,
         limits: {
           maxRecordingDuration: isActive ? 300 : 120,
           maxEntriesPerMonth: isActive ? -1 : 50,
@@ -113,12 +82,16 @@ export default function BillingPage() {
         },
       })
 
-      // Fetch usage stats from API
-      const response = await fetch(`/api/usage?userId=${user.id}`)
-      if (response.ok) {
-        const usageData = await response.json()
-        setUsage(usageData)
-      } else {
+      // Fetch usage stats from API or use mock data
+      try {
+        const response = await fetch(`/api/usage?userId=${user.id}`)
+        if (response.ok) {
+          const usageData = await response.json()
+          setUsage(usageData)
+        } else {
+          throw new Error('API not available')
+        }
+      } catch {
         // Fallback to mock data
         setUsage({
           entriesThisMonth: 12,
@@ -140,42 +113,29 @@ export default function BillingPage() {
           maxStorageGB: 1,
         },
       })
+      setUsage({
+        entriesThisMonth: 12,
+        chatMessagesThisMonth: 8,
+        storageMB: 245,
+      })
     }
   }
 
   const handleUpgrade = async () => {
-    if (!user || !contractInitialized) {
-      alert("Smart contract not available. Please try again later.")
+    if (!user || !contractAddress) {
+      alert("Wallet not connected or contract not available. Please try again.")
       return
     }
 
     setIsUpgrading(true)
     try {
-      const result = await smartContractService.subscribeToPro()
+      const success = await purchaseProSubscription()
 
-      if (result.success) {
-        setLastTransactionHash(result.transactionHash || null)
-
-        // Update subscription in database
-        if (result.transactionHash) {
-          await fetch("/api/subscription/upgrade", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              userId: user.id,
-              tier: "pro",
-              transactionHash: result.transactionHash,
-              amountPaid: proPrice,
-            }),
-          })
-        }
-
+      if (success) {
         alert("Upgrade successful! Welcome to Pro!")
-        await fetchSubscriptionData() // Refresh data
+        // Data will refresh automatically via the hook
       } else {
-        alert(result.error || "Upgrade failed. Please try again.")
+        alert(contractError || "Upgrade failed. Please try again.")
       }
     } catch (error) {
       console.error("Upgrade failed:", error)
@@ -186,50 +146,13 @@ export default function BillingPage() {
   }
 
   const handleCancel = async () => {
-    if (!user || !contractInitialized) {
-      alert("Smart contract not available. Please try again later.")
+    if (!confirm(
+      "Are you sure you want to cancel your subscription? You'll retain Pro features until your current billing period ends."
+    )) {
       return
     }
 
-    if (
-      !confirm(
-        "Are you sure you want to cancel your subscription? You'll retain Pro features until your current billing period ends.",
-      )
-    ) {
-      return
-    }
-
-    setIsCancelling(true)
-    try {
-      const result = await smartContractService.cancelSubscription()
-
-      if (result.success) {
-        setLastTransactionHash(result.transactionHash || null)
-
-        // Update subscription in database
-        if (result.transactionHash) {
-          await fetch("/api/subscription/cancel", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              userId: user.id,
-            }),
-          })
-        }
-
-        alert("Subscription cancelled successfully. You'll retain Pro features until your current billing period ends.")
-        await fetchSubscriptionData() // Refresh data
-      } else {
-        alert(result.error || "Cancellation failed. Please try again.")
-      }
-    } catch (error) {
-      console.error("Cancellation failed:", error)
-      alert("Cancellation failed. Please try again.")
-    } finally {
-      setIsCancelling(false)
-    }
+    alert("Subscription cancellation is not available in this version. Your subscription will automatically expire after the billing period.")
   }
 
   if (isLoading) {
@@ -268,33 +191,24 @@ export default function BillingPage() {
       <main className="px-4 py-6">
         <div className="max-w-md mx-auto space-y-6">
           {/* Smart Contract Status */}
-          {!contractInitialized && (
-            <Card className="border-amber-200 bg-amber-50">
+          {!contractAddress && (
+            <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-amber-800">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                   <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">Smart contract not available. Some features may be limited.</p>
+                  <p className="text-sm">Smart contract not configured. Please check your environment variables.</p>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Transaction Status */}
-          {lastTransactionHash && (
-            <Card className="border-green-200 bg-green-50">
+          {/* Contract Error */}
+          {contractError && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-green-800">
-                    <Check className="w-4 h-4" />
-                    <p className="text-sm">Transaction successful!</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open(`https://basescan.org/tx/${lastTransactionHash}`, "_blank")}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                  </Button>
+                <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                  <AlertCircle className="w-4 h-4" />
+                  <p className="text-sm">{contractError}</p>
                 </div>
               </CardContent>
             </Card>
@@ -407,8 +321,10 @@ export default function BillingPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-card-foreground">{proPrice} ETH</div>
-                    <div className="text-sm text-muted-foreground">per month</div>
+                    <div className="text-3xl font-bold text-card-foreground">
+                      {proPrice ? `${proPrice} ETH` : '...'}
+                    </div>
+                    <div className="text-sm text-muted-foreground">per month (~$15 USD)</div>
                   </div>
 
                   <div className="space-y-2">
@@ -442,14 +358,18 @@ export default function BillingPage() {
                     </div>
                   </div>
 
-                  <Button className="w-full" onClick={handleUpgrade} disabled={isUpgrading || !contractInitialized}>
-                    {isUpgrading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {isUpgrading ? "Processing..." : `Upgrade to Pro (${proPrice} ETH)`}
+                  <Button
+                    className="w-full"
+                    onClick={handleUpgrade}
+                    disabled={isUpgrading || contractLoading || !contractAddress || !proPrice}
+                  >
+                    {(isUpgrading || contractLoading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {isUpgrading ? "Processing..." : `Upgrade to Pro${proPrice ? ` (${proPrice} ETH)` : ''}`}
                   </Button>
 
-                  {!contractInitialized && (
+                  {!contractAddress && (
                     <p className="text-xs text-muted-foreground text-center">
-                      Smart contract integration required for payments
+                      Smart contract not configured
                     </p>
                   )}
                 </CardContent>
@@ -481,7 +401,7 @@ export default function BillingPage() {
                         {nextBillingDate ? nextBillingDate.toLocaleDateString() : "Current"}
                       </p>
                     </div>
-                    <span className="font-medium text-card-foreground">{proPrice} ETH</span>
+                    <span className="font-medium text-card-foreground">{proPrice || '0.01'} ETH</span>
                   </div>
                 </div>
               )}
@@ -495,10 +415,8 @@ export default function BillingPage() {
                 variant="outline"
                 className="w-full text-destructive hover:text-destructive bg-transparent"
                 onClick={handleCancel}
-                disabled={isCancelling || !contractInitialized}
               >
-                {isCancelling && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isCancelling ? "Cancelling..." : "Cancel Subscription"}
+                Cancel Subscription
               </Button>
             </div>
           )}

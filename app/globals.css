@@ -1,40 +1,41 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
   /* Updated to use the new pastel color scheme */
-  --thistle: #cdb4db;
-  --fairy-tale: #ffc8dd;
-  --carnation-pink: #ffafcc;
-  --uranian-blue: #bde0fe;
-  --light-sky-blue: #a2d2ff;
+  --thistle: #cdb4dbff;
+  --fairy-tale: #ffc8ddff;
+  --carnation-pink: #ffafccff;
+  --uranian-blue: #bde0feff;
+  --light-sky-blue: #a2d2ffff;
 
-  --background: oklch(1 0 0); /* Pure white */
-  --foreground: oklch(0.35 0 0); /* Dark text for readability */
-  --card: oklch(0.95 0.05 320); /* Light thistle tint for cards */
-  --card-foreground: oklch(0.35 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.35 0 0);
-  --primary: oklch(0.7 0.15 320); /* Thistle as primary */
-  --primary-foreground: oklch(0.2 0 0);
-  --secondary: oklch(0.8 0.12 350); /* Fairy tale pink for secondary */
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.96 0.02 320); /* Very light thistle for muted */
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.75 0.15 10); /* Carnation pink for accents */
-  --accent-foreground: oklch(0.2 0 0);
+  --background: oklch(0.98 0.01 320); /* Very light thistle background */
+  --foreground: oklch(0.25 0.02 320); /* Dark text with slight thistle tint */
+  --card: oklch(0.96 0.03 320); /* Light thistle tint for cards */
+  --card-foreground: oklch(0.25 0.02 320);
+  --popover: oklch(0.98 0.01 320);
+  --popover-foreground: oklch(0.25 0.02 320);
+  --primary: oklch(0.75 0.08 320); /* Thistle as primary */
+  --primary-foreground: oklch(0.98 0.01 320);
+  --secondary: oklch(0.85 0.06 350); /* Fairy tale pink for secondary */
+  --secondary-foreground: oklch(0.25 0.02 320);
+  --muted: oklch(0.94 0.04 320); /* Light thistle for muted */
+  --muted-foreground: oklch(0.45 0.03 320);
+  --accent: oklch(0.8 0.08 10); /* Carnation pink for accents */
+  --accent-foreground: oklch(0.25 0.02 320);
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.9 0.03 320);
   --input: oklch(0.98 0.02 320);
   --ring: oklch(0.7 0.15 320 / 0.3);
-  --chart-1: oklch(0.7 0.15 320); /* Thistle */
-  --chart-2: oklch(0.8 0.12 350); /* Fairy tale */
-  --chart-3: oklch(0.75 0.15 10); /* Carnation pink */
-  --chart-4: oklch(0.8 0.1 220); /* Uranian blue */
-  --chart-5: oklch(0.75 0.12 240); /* Light sky blue */
+  --chart-1: oklch(0.75 0.08 320); /* Thistle */
+  --chart-2: oklch(0.85 0.06 350); /* Fairy tale */
+  --chart-3: oklch(0.8 0.08 10); /* Carnation pink */
+  --chart-4: oklch(0.85 0.06 220); /* Uranian blue */
+  --chart-5: oklch(0.8 0.08 240); /* Light sky blue */
   --radius: 0.75rem; /* Softer radius for the pastel theme */
   --sidebar: oklch(0.95 0.05 320);
   --sidebar-foreground: oklch(0.35 0 0);
@@ -48,30 +49,30 @@
 
 .dark {
   /* Updated dark mode to complement the pastel colors */
-  --background: oklch(0.12 0.02 320); /* Dark with slight thistle tint */
-  --foreground: oklch(0.95 0.02 320); /* Light with thistle tint */
-  --card: oklch(0.18 0.03 320);
-  --card-foreground: oklch(0.95 0.02 320);
-  --popover: oklch(0.12 0.02 320);
-  --popover-foreground: oklch(0.95 0.02 320);
-  --primary: oklch(0.65 0.18 320); /* Brighter thistle for dark mode */
-  --primary-foreground: oklch(0.12 0.02 320);
-  --secondary: oklch(0.7 0.15 350); /* Brighter fairy tale pink */
-  --secondary-foreground: oklch(0.12 0.02 320);
-  --muted: oklch(0.22 0.02 320);
-  --muted-foreground: oklch(0.7 0.02 320);
-  --accent: oklch(0.7 0.18 10); /* Brighter carnation pink */
-  --accent-foreground: oklch(0.12 0.02 320);
+  --background: oklch(0.08 0.02 320); /* Dark with slight thistle tint */
+  --foreground: oklch(0.92 0.03 320); /* Light with thistle tint */
+  --card: oklch(0.12 0.03 320);
+  --card-foreground: oklch(0.92 0.03 320);
+  --popover: oklch(0.08 0.02 320);
+  --popover-foreground: oklch(0.92 0.03 320);
+  --primary: oklch(0.75 0.08 320); /* Thistle for dark mode */
+  --primary-foreground: oklch(0.08 0.02 320);
+  --secondary: oklch(0.85 0.06 350); /* Fairy tale pink */
+  --secondary-foreground: oklch(0.08 0.02 320);
+  --muted: oklch(0.16 0.03 320);
+  --muted-foreground: oklch(0.65 0.04 320);
+  --accent: oklch(0.8 0.08 10); /* Carnation pink */
+  --accent-foreground: oklch(0.08 0.02 320);
   --destructive: oklch(0.6 0.25 25);
   --destructive-foreground: oklch(0.95 0.02 320);
   --border: oklch(0.25 0.03 320);
   --input: oklch(0.25 0.03 320);
   --ring: oklch(0.65 0.18 320 / 0.4);
-  --chart-1: oklch(0.65 0.18 320);
-  --chart-2: oklch(0.7 0.15 350);
-  --chart-3: oklch(0.7 0.18 10);
-  --chart-4: oklch(0.75 0.12 220);
-  --chart-5: oklch(0.7 0.15 240);
+  --chart-1: oklch(0.75 0.08 320);
+  --chart-2: oklch(0.85 0.06 350);
+  --chart-3: oklch(0.8 0.08 10);
+  --chart-4: oklch(0.85 0.06 220);
+  --chart-5: oklch(0.8 0.08 240);
   --sidebar: oklch(0.18 0.03 320);
   --sidebar-foreground: oklch(0.95 0.02 320);
   --sidebar-primary: oklch(0.65 0.18 320);
@@ -129,5 +130,20 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .from-thistle {
+    --tw-gradient-from: #cdb4dbff var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(205 180 219 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+  .via-fairy-tale {
+    --tw-gradient-to: rgb(255 200 221 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), #ffc8ddff var(--tw-gradient-via-position), var(--tw-gradient-to);
+  }
+  .to-carnation-pink {
+    --tw-gradient-to: #ffafccff var(--tw-gradient-to-position);
   }
 }

@@ -20,6 +20,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
   const [duration, setDuration] = useState(0)
   const [audioLevel, setAudioLevel] = useState(0)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -48,6 +49,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
   }, [duration, isRecording])
 
   const initializeAudio = async () => {
+    setMicError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -84,7 +86,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
       startVisualization()
     } catch (error) {
       console.error("Error accessing microphone:", error)
-      alert("Unable to access microphone. Please check your permissions.")
+      setMicError("Microphone access was denied. Please enable it in your browser settings and try again.")
     }
   }
 
@@ -181,105 +183,97 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-sm bg-card border-border">
-        <CardContent className="p-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-card-foreground">Recording Entry</h2>
-            <Button variant="ghost" size="sm" onClick={handleClose} className="h-8 w-8 p-0" disabled={isProcessing}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+    <div className="fixed inset-0 bg-background z-50">
+      <div className="w-full max-w-md mx-auto flex flex-col h-full">
+        {/* Header */}
+        <header className="flex items-center justify-between p-4">
+          <h2 className="text-lg font-medium text-foreground">New Entry</h2>
+          <Button variant="ghost" size="icon" onClick={handleClose} disabled={isProcessing}>
+            <X className="w-5 h-5" />
+          </Button>
+        </header>
 
-          {/* Purpose */}
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Purpose: <span className="font-medium text-foreground">{purpose}</span>
-            </p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              {user?.subscriptionTier === "pro" && (
-                <div className="flex items-center gap-1 text-xs text-primary">
-                  <Crown className="w-3 h-3" />
-                  Pro
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Max: {formatTime(MAX_DURATION)} {user?.subscriptionTier === "free" && "(Upgrade for 5min)"}
-              </p>
-            </div>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8">
 
-          {/* Timer */}
-          <div className="text-center">
-            <div className="text-3xl font-mono font-bold text-foreground">{formatTime(duration)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {MAX_DURATION - duration > 0 ? `${formatTime(MAX_DURATION - duration)} remaining` : "Time limit reached"}
-            </p>
-          </div>
-
-          {/* Audio Visualizer */}
-          <div className="flex justify-center">
-            <div className="flex items-end gap-1 h-16">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-primary rounded-full transition-all duration-100"
-                  style={{
-                    height: `${Math.max(4, audioLevel * 60 * (0.5 + Math.random() * 0.5))}px`,
-                    opacity: isRecording && !isPaused ? 0.7 + audioLevel * 0.3 : 0.3,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex justify-center gap-4">
-            {isProcessing ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Processing with AI...
-              </div>
-            ) : !isRecording ? (
-              <Button
-                size="lg"
-                onClick={startRecording}
-                className="w-16 h-16 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Mic className="w-6 h-6" />
+          {micError ? (
+            <div className="text-center text-destructive bg-destructive/10 p-6 rounded-lg">
+              <h3 className="font-bold">Microphone Error</h3>
+              <p className="mt-2 text-sm">{micError}</p>
+              <Button onClick={initializeAudio} variant="secondary" className="mt-4">
+                Try Again
               </Button>
-            ) : (
-              <>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={pauseRecording}
-                  className="w-12 h-12 rounded-full bg-transparent"
-                >
-                  {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
-                </Button>
-                <Button size="lg" variant="destructive" onClick={stopRecording} className="w-12 h-12 rounded-full">
-                  <Square className="w-5 h-5" />
-                </Button>
-              </>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* Audio Visualizer */}
+              <div className="w-48 h-48 rounded-full bg-primary/5 flex items-center justify-center">
+                <div className="w-40 h-40 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="flex items-end gap-1 h-24">
+                    {Array.from({ length: 12 }).map((_, i) => {
+                      const barHeight = Math.max(4, audioLevel * 96 * (0.5 + Math.sin(i * 2) * 0.5))
+                      return (
+                        <div
+                          key={i}
+                          className="w-2 rounded-full transition-all duration-100"
+                          style={{
+                            height: `${barHeight}px`,
+                            backgroundColor: `hsl(var(--primary) / ${isRecording && !isPaused ? 0.5 + audioLevel * 0.5 : 0.3})`,
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
 
-          {/* Status */}
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              {isProcessing
-                ? "Processing your recording with AI..."
-                : !isRecording
-                  ? "Tap the microphone to start recording"
-                  : isPaused
-                    ? "Recording paused"
-                    : "Recording in progress..."}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Timer */}
+              <div className="text-center">
+                <div className="text-6xl font-mono font-bold text-foreground">{formatTime(duration)}</div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {MAX_DURATION - duration > 0 ? `${formatTime(MAX_DURATION - duration)} remaining` : "Time limit reached"}
+                </p>
+              </div>
+
+              {/* Controls */}
+              <div className="w-full space-y-4">
+                <div className="flex justify-center items-center gap-4">
+                  <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full bg-card">
+                    {/* Placeholder for rewind/restart */}
+                  </Button>
+                  {isRecording ? (
+                    <Button
+                      size="icon"
+                      onClick={pauseRecording}
+                      className="w-20 h-20 rounded-full bg-primary text-primary-foreground shadow-lg"
+                    >
+                      {isPaused ? <Play className="w-8 h-8 fill-current" /> : <Pause className="w-8 h-8 fill-current" />}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="icon"
+                      onClick={startRecording}
+                      className="w-20 h-20 rounded-full bg-primary text-primary-foreground shadow-lg"
+                    >
+                      <Mic className="w-8 h-8" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full bg-card">
+                    {/* Placeholder for forward/skip */}
+                  </Button>
+                </div>
+                <div className="flex gap-4">
+                  <Button variant="secondary" onClick={handleClose} className="flex-1 h-12">
+                    Cancel
+                  </Button>
+                  <Button onClick={stopRecording} className="flex-1 h-12">
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

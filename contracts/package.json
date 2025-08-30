@@ -1,0 +1,18 @@
+{
+  "name": "voicediary-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for VoiceDiary payment system",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network base",
+    "deploy-testnet": "hardhat run scripts/deploy.js --network base-sepolia",
+    "verify": "hardhat verify --network base",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "hardhat": "^2.19.0",
+    "dotenv": "^16.3.1"
+  }
+}

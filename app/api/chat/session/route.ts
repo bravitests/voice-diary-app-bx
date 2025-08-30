@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ sessionId: session.id })
   } catch (error) {
-    console.error("[v0] Create chat session API error:", error)
-    return NextResponse.json({ error: "Failed to create chat session" }, { status: 500 })
+    console.error("Chat session API error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mic, BookOpen, MessageCircle, User, Settings, Loader2, Plus } from "lucide-react"
 import { RecordingModal } from "@/components/recording-modal"
+import { AddPurposeModal } from "@/components/add-purpose-modal"
 
 interface Purpose {
   id: string
@@ -25,6 +26,8 @@ export default function Dashboard() {
   const [showRecordingModal, setShowRecordingModal] = useState(false)
   const [isCheckingLimit, setIsCheckingLimit] = useState(false)
   const [loadingPurposes, setLoadingPurposes] = useState(true)
+  const [showAddPurpose, setShowAddPurpose] = useState(false)
+  const [purposeError, setPurposeError] = useState<string | null>(null)
 
   useEffect(() => {
     if (user?.walletAddress) {
@@ -33,6 +36,8 @@ export default function Dashboard() {
   }, [user, isLoading, router])
 
   const fetchPurposes = async () => {
+    setLoadingPurposes(true)
+    setPurposeError(null)
     try {
       const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
       const data = await response.json()
@@ -43,27 +48,11 @@ export default function Dashboard() {
           setSelectedPurpose(defaultPurpose.id)
         }
       } else {
-        const fallbackPurpose = {
-          id: "reflection-default",
-          name: "Reflection",
-          description: "Daily thoughts and reflections",
-          color: "#a2d2ff",
-          is_default: true,
-        }
-        setPurposes([fallbackPurpose])
-        setSelectedPurpose(fallbackPurpose.id)
+        setPurposeError("Failed to load purposes. Please try again.")
       }
     } catch (error) {
       console.error("Error fetching purposes:", error)
-      const fallbackPurpose = {
-        id: "reflection-default",
-        name: "Reflection",
-        description: "Daily thoughts and reflections",
-        color: "#a2d2ff",
-        is_default: true,
-      }
-      setPurposes([fallbackPurpose])
-      setSelectedPurpose(fallbackPurpose.id)
+      setPurposeError("An unexpected error occurred. Please try again.")
     } finally {
       setLoadingPurposes(false)
     }
@@ -142,7 +131,7 @@ export default function Dashboard() {
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       <header className="px-4 py-6 border-b border-border">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -157,8 +146,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="px-4 py-6">
-        <div className="max-w-md mx-auto space-y-6">
+      <main className="px-4 py-6 flex flex-col min-h-[calc(100vh-140px)]">
+        <div className="max-w-lg mx-auto space-y-6 flex-1 flex flex-col w-full">
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
               Welcome back, {user.name || user.walletAddress?.slice(0, 6)}!
@@ -170,7 +159,7 @@ export default function Dashboard() {
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-card-foreground">What's on your mind?</h2>
-                <Button variant="ghost" size="sm" onClick={() => router.push("/profile")} className="h-8 w-8 p-0">
+                <Button variant="ghost" size="sm" onClick={() => setShowAddPurpose(true)} className="h-8 w-8 p-0">
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -178,6 +167,11 @@ export default function Dashboard() {
               {loadingPurposes ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : purposeError ? (
+                <div className="text-center py-4 text-destructive">
+                  <p>{purposeError}</p>
+                  <Button onClick={fetchPurposes} variant="link">Retry</Button>
                 </div>
               ) : (
                 <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
@@ -199,51 +193,56 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-center py-8">
-            <Button
-              size="lg"
-              onClick={handleStartRecording}
-              disabled={!selectedPurpose || isCheckingLimit || loadingPurposes}
-              className="w-24 h-24 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-            >
-              {isCheckingLimit ? <Loader2 className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/entries")}
-            >
-              <BookOpen className="w-5 h-5" />
-              <span className="text-xs">Entries</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/chat")}
-            >
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-xs">Chat</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/profile")}
-            >
-              <User className="w-5 h-5" />
-              <span className="text-xs">Profile</span>
-            </Button>
+          <div className="flex-1 flex items-center justify-center py-12">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-thistle via-fairy-tale to-carnation-pink p-1 shadow-2xl">
+                <div className="w-full h-full rounded-full bg-background flex items-center justify-center">
+                  <Button
+                    size="lg"
+                    onClick={handleStartRecording}
+                    disabled={!selectedPurpose || isCheckingLimit || loadingPurposes}
+                    className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg border-0"
+                  >
+                    {isCheckingLimit ? <Loader2 className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
+
+      
 
       <RecordingModal
         isOpen={showRecordingModal}
         onClose={() => setShowRecordingModal(false)}
         purpose={selectedPurposeData?.name || ""}
         onSave={handleSaveRecording}
+      />
+      
+      <AddPurposeModal
+        isOpen={showAddPurpose}
+        onClose={() => setShowAddPurpose(false)}
+        onAdd={async (name, description, color) => {
+          try {
+            const response = await fetch('/api/purposes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                walletAddress: user?.walletAddress,
+                name,
+                description,
+                color
+              })
+            })
+            if (response.ok) {
+              fetchPurposes()
+            }
+          } catch (error) {
+            console.error('Error adding purpose:', error)
+          }
+        }}
       />
     </div>
   )

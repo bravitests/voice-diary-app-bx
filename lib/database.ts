@@ -65,10 +65,10 @@ export const db = {
   },
 
   // Recording operations
-  async createRecording(userId: string, purpose: string, audioUrl: string, duration: number) {
+  async createRecording(userId: string, purposeId: string, audioUrl: string, duration: number) {
     const result = await query(
-      "INSERT INTO recordings (user_id, purpose, audio_url, audio_duration) VALUES ($1, $2, $3, $4) RETURNING *",
-      [userId, purpose, audioUrl, duration],
+      "INSERT INTO recordings (user_id, purpose_id, audio_url, audio_duration) VALUES ($1, $2, $3, $4) RETURNING *",
+      [userId, purposeId, audioUrl, duration],
     )
     return result.rows[0]
   },
@@ -81,16 +81,21 @@ export const db = {
     return result.rows[0]
   },
 
-  async getUserRecordings(userId: string, purpose?: string) {
-    let queryText = "SELECT * FROM recordings WHERE user_id = $1"
+  async getUserRecordings(userId: string, purposeId?: string) {
+    let queryText = `
+      SELECT r.*, p.name as purpose_name, p.color as purpose_color
+      FROM recordings r
+      LEFT JOIN purposes p ON r.purpose_id = p.id
+      WHERE r.user_id = $1
+    `
     const params = [userId]
 
-    if (purpose && purpose !== "all") {
-      queryText += " AND purpose = $2"
-      params.push(purpose)
+    if (purposeId && purposeId !== "all") {
+      queryText += " AND r.purpose_id = $2"
+      params.push(purposeId)
     }
 
-    queryText += " ORDER BY created_at DESC"
+    queryText += " ORDER BY r.created_at DESC"
 
     const result = await query(queryText, params)
     return result.rows
@@ -117,10 +122,10 @@ export const db = {
   },
 
   // Chat operations
-  async createChatSession(userId: string, purpose: string, title: string) {
-    const result = await query("INSERT INTO chat_sessions (user_id, purpose, title) VALUES ($1, $2, $3) RETURNING *", [
+  async createChatSession(userId: string, purposeId: string, title: string) {
+    const result = await query("INSERT INTO chat_sessions (user_id, purpose_id, title) VALUES ($1, $2, $3) RETURNING *", [
       userId,
-      purpose,
+      purposeId,
       title,
     ])
     return result.rows[0]

@@ -257,29 +257,7 @@ export default function EntriesPage() {
             )}
           </div>
 
-          {/* Bottom Navigation */}
-          <div className="grid grid-cols-3 gap-4 pt-4">
-            <Button variant="outline" className="flex flex-col gap-2 h-16 bg-primary/5 border-primary/20">
-              <BookOpen className="w-5 h-5 text-primary" />
-              <span className="text-xs text-primary font-medium">Entries</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/chat")}
-            >
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-xs">Chat</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col gap-2 h-16 bg-transparent"
-              onClick={() => router.push("/profile")}
-            >
-              <User className="w-5 h-5" />
-              <span className="text-xs">Profile</span>
-            </Button>
-          </div>
+          
         </div>
       </main>
     </div>

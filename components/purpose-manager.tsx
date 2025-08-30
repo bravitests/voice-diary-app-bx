@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, AlertTriangle } from "lucide-react"
+import { Trash2, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import {
   Dialog,
@@ -31,10 +29,8 @@ export function PurposeManager() {
   const { user } = useAuth()
   const [purposes, setPurposes] = useState<Purpose[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddDialog, setShowAddDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | null>(null)
-  const [newPurpose, setNewPurpose] = useState({ name: "", description: "", color: "#cdb4db" })
 
   useEffect(() => {
     if (user?.walletAddress) {
@@ -56,28 +52,7 @@ export function PurposeManager() {
     }
   }
 
-  const handleAddPurpose = async () => {
-    if (!newPurpose.name.trim()) return
 
-    try {
-      const response = await fetch("/api/purposes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          walletAddress: user?.walletAddress,
-          ...newPurpose,
-        }),
-      })
-
-      if (response.ok) {
-        await fetchPurposes()
-        setNewPurpose({ name: "", description: "", color: "#cdb4db" })
-        setShowAddDialog(false)
-      }
-    } catch (error) {
-      console.error("Error creating purpose:", error)
-    }
-  }
 
   const handleDeletePurpose = async () => {
     if (!selectedPurpose) return
@@ -103,12 +78,9 @@ export function PurposeManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
         <h2 className="text-xl font-semibold text-foreground">Manage Purposes</h2>
-        <Button onClick={() => setShowAddDialog(true)} size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Purpose
-        </Button>
+        <p className="text-sm text-muted-foreground mt-1">Delete custom purposes you no longer need</p>
       </div>
 
       <div className="grid gap-4">
@@ -150,58 +122,7 @@ export function PurposeManager() {
         ))}
       </div>
 
-      {/* Add Purpose Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Purpose</DialogTitle>
-            <DialogDescription>Create a new purpose category for your voice diary entries.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground">Name</label>
-              <Input
-                value={newPurpose.name}
-                onChange={(e) => setNewPurpose({ ...newPurpose, name: e.target.value })}
-                placeholder="e.g., Goals, Gratitude, Ideas"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Description (optional)</label>
-              <Textarea
-                value={newPurpose.description}
-                onChange={(e) => setNewPurpose({ ...newPurpose, description: e.target.value })}
-                placeholder="Brief description of this purpose"
-                className="mt-1"
-                rows={2}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Color</label>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="color"
-                  value={newPurpose.color}
-                  onChange={(e) => setNewPurpose({ ...newPurpose, color: e.target.value })}
-                  className="w-8 h-8 rounded border border-border"
-                />
-                <Input
-                  value={newPurpose.color}
-                  onChange={(e) => setNewPurpose({ ...newPurpose, color: e.target.value })}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddPurpose}>Add Purpose</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Delete Purpose Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

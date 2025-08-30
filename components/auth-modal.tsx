@@ -15,7 +15,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const { connectWallet } = useAuth()
+  const { isWalletConnected } = useAuth()
 
   if (!isOpen) return null
 
@@ -24,13 +24,13 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     setError("")
 
     try {
-      const success = await connectWallet()
-
-      if (success) {
+      // The wallet connection is handled by OnchainKit's ConnectWallet component
+      // This modal should close when connection is successful
+      if (isWalletConnected) {
         onSuccess()
         onClose()
       } else {
-        setError("Wallet connection failed. Please try again.")
+        setError("Please use the Connect Wallet button in the header to connect your wallet.")
       }
     } catch (err) {
       setError("Something went wrong. Please try again.")
@@ -40,8 +40,9 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-sm bg-card border-border">
+    <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <Card className="relative w-full max-w-sm bg-card border-border shadow-2xl">
         <CardHeader className="space-y-1 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -63,11 +64,18 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <Button onClick={handleWalletConnect} className="w-full" disabled={isLoading} size="lg">
-              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <Wallet className="w-4 h-4 mr-2" />
-              Connect Base Wallet
-            </Button>
+            {isWalletConnected ? (
+              <Button onClick={() => { onSuccess(); onClose(); }} className="w-full" size="lg">
+                <Wallet className="w-4 h-4 mr-2" />
+                Continue to App
+              </Button>
+            ) : (
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Please use the "Connect Wallet" button in the header above to connect your Base wallet.
+                </p>
+              </div>
+            )}
 
             <p className="text-xs text-muted-foreground">
               You'll be able to add your name and email in your profile after connecting

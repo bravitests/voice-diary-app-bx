@@ -17,11 +17,16 @@ import {
   TrendingUp,
   Mic,
   MessageCircle,
+  Crown,
+  DollarSign,
+  ExternalLink,
 } from "lucide-react"
+import { usePaymentContract } from "@/hooks/usePaymentContract"
 
 export default function AdminPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
+  const { contractAddress, proPrice } = usePaymentContract()
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -78,6 +83,26 @@ export default function AdminPage() {
 
             <Card className="border-border bg-card">
               <CardContent className="p-4 text-center">
+                <div className="w-8 h-8 bg-yellow-500/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+                  <Crown className="w-4 h-4 text-yellow-500" />
+                </div>
+                <div className="text-2xl font-bold text-card-foreground">89</div>
+                <div className="text-xs text-muted-foreground">Pro Subscribers</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card">
+              <CardContent className="p-4 text-center">
+                <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+                  <DollarSign className="w-4 h-4 text-green-500" />
+                </div>
+                <div className="text-2xl font-bold text-card-foreground">2.45</div>
+                <div className="text-xs text-muted-foreground">ETH Revenue</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card">
+              <CardContent className="p-4 text-center">
                 <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
                   <Mic className="w-4 h-4 text-primary" />
                 </div>
@@ -86,6 +111,48 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Contract Info */}
+          {contractAddress && (
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-base text-card-foreground flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Payment Contract
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Contract Address</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-mono text-card-foreground">
+                      {contractAddress.slice(0, 8)}...{contractAddress.slice(-6)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(`https://basescan.org/address/${contractAddress}`, "_blank")}
+                      className="h-6 w-6 p-0"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Pro Price</span>
+                  <Badge variant="secondary">
+                    {proPrice || '0.01'} ETH/month
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Network</span>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    Base
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Recent Activity */}
           <Card className="border-border bg-card">
@@ -105,8 +172,8 @@ export default function AdminPage() {
               </div>
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <span className="text-sm text-card-foreground">Pro subscription activated</span>
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full" />
+                  <span className="text-sm text-card-foreground">Pro subscription purchased (0.01 ETH)</span>
                 </div>
                 <span className="text-xs text-muted-foreground">5m ago</span>
               </div>
@@ -154,7 +221,11 @@ export default function AdminPage() {
           <div className="space-y-3">
             <h2 className="text-lg font-bold text-foreground">Quick Actions</h2>
 
-            <Button variant="outline" className="w-full justify-start gap-3 h-12 bg-transparent">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-3 h-12 bg-transparent"
+              onClick={() => router.push("/admin/users")}
+            >
               <Users className="w-4 h-4" />
               Manage Users
             </Button>
