@@ -4,6 +4,12 @@ const { Pool } = require('pg')
 const fs = require('fs')
 const path = require('path')
 
+// Handle case where DATABASE_URL is not available
+if (!process.env.DATABASE_URL) {
+  console.log('⏭️  DATABASE_URL not available - skipping migration')
+  process.exit(0)
+}
+
 // Database migration script for Voice Diary App
 // This script ensures the database is properly initialized with all required tables and data
 
@@ -183,6 +189,12 @@ async function seedDefaultData() {
 
 async function main() {
   try {
+    // Skip migration if no DATABASE_URL is provided (build time)
+    if (!process.env.DATABASE_URL) {
+      console.log('⏭️  Skipping database migration (no DATABASE_URL provided)')
+      return
+    }
+    
     console.log('🎯 Voice Diary Database Migration Script')
     console.log('=====================================')
     
@@ -201,9 +213,16 @@ async function main() {
     
   } catch (error) {
     console.error('💥 Migration failed:', error.message)
+    // Don't exit with error code during build - just log and continue
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      console.log('⚠️  Migration failed during build - this is expected if DATABASE_URL is not set')
+      return
+    }
     process.exit(1)
   } finally {
-    await pool.end()
+    if (pool) {
+      await pool.end()
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import { Pool, type PoolClient } from "pg"
 
 // Database connection pool
 let pool: Pool | null = null
+let isInitialized = false
 
 export function getPool(): Pool {
   if (!pool) {
@@ -22,7 +23,24 @@ export function getPool(): Pool {
   return pool
 }
 
+async function initializeIfNeeded() {
+  if (isInitialized || !process.env.DATABASE_URL) {
+    return
+  }
+
+  try {
+    // Try to run a simple query to check if database is accessible
+    const pool = getPool()
+    await pool.query('SELECT 1')
+    isInitialized = true
+  } catch (error) {
+    console.log('Database not yet initialized, will be initialized on first API call')
+  }
+}
+
 export async function query(text: string, params?: any[]): Promise<any> {
+  await initializeIfNeeded()
+  
   const pool = getPool()
   const start = Date.now()
 
