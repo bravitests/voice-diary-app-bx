@@ -10,9 +10,7 @@ const nextConfig = {
     unoptimized: true,
   },
   // Performance optimizations
-  experimental: {
-    serverComponentsExternalPackages: ['pg'],
-  },
+  serverExternalPackages: ['pg'],
   // Optimize bundle
   webpack: (config, { isServer }) => {
     if (!isServer) {
