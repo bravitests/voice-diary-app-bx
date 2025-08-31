@@ -40,7 +40,12 @@ const PAYMENT_CONTRACT_ABI = [
 ] as const
 
 // Replace with your deployed contract address
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}` | undefined
+
+// Validate contract address
+if (typeof window !== 'undefined' && !CONTRACT_ADDRESS) {
+  console.warn('NEXT_PUBLIC_CONTRACT_ADDRESS is not set - payment features will be disabled')
+}
 
 export function usePaymentContract() {
   const { address } = useAccount()
@@ -55,6 +60,7 @@ export function usePaymentContract() {
     abi: PAYMENT_CONTRACT_ABI,
     functionName: 'subscriptionPrices',
     args: [1], // PRO tier
+    enabled: !!CONTRACT_ADDRESS,
   })
 
   // Check if user has active PRO subscription
@@ -63,7 +69,7 @@ export function usePaymentContract() {
     abi: PAYMENT_CONTRACT_ABI,
     functionName: 'hasActiveProSubscription',
     args: address ? [address] : undefined,
-    enabled: !!address,
+    enabled: !!address && !!CONTRACT_ADDRESS,
   })
 
   // Get user subscription details
@@ -72,10 +78,15 @@ export function usePaymentContract() {
     abi: PAYMENT_CONTRACT_ABI,
     functionName: 'getUserSubscription',
     args: address ? [address] : undefined,
-    enabled: !!address,
+    enabled: !!address && !!CONTRACT_ADDRESS,
   })
 
   const purchaseProSubscription = useCallback(async () => {
+    if (!CONTRACT_ADDRESS) {
+      setError('Contract address not configured')
+      return false
+    }
+    
     if (!address || !proPrice) {
       setError('Wallet not connected or price not loaded')
       return false

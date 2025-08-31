@@ -29,9 +29,10 @@ async function runSupabaseMigrations() {
   
   const pool = new Pool({
     connectionString,
-    ssl: {
+    ssl: connectionString.includes('supabase.com') ? {
       rejectUnauthorized: false, // Required for Supabase
-    },
+      checkServerIdentity: () => undefined, // Skip hostname verification
+    } : false,
     // Shorter timeouts for build process
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 5000,

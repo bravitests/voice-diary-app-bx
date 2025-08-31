@@ -6,7 +6,7 @@ let isInitialized = false
 
 export function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.DATABASE_POSTGRES_URL 
+    const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
 
     if (!connectionString) {
       throw new Error("DATABASE_POSTGRES_URL or DATABASE_URL environment variable is not set")
@@ -16,9 +16,12 @@ export function getPool(): Pool {
 
     pool = new Pool({
       connectionString,
-      ssl: {
+      ssl: connectionString.includes('supabase.com') ? {
         rejectUnauthorized: false, // Required for Supabase
-      },
+        checkServerIdentity: () => undefined, // Skip hostname verification
+      } : process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false,
+      } : false,
       max: process.env.NODE_ENV === "production" ? 5 : 20, // Fewer connections for serverless
       idleTimeoutMillis: 10000, // Shorter idle timeout for serverless
       connectionTimeoutMillis: 15000, // Even longer connection timeout for Vercel
