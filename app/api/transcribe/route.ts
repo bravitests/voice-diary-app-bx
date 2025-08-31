@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { rateLimitMiddleware, systemMonitor, geminiCircuitBreaker } from "@/lib/rate-limiter"
-import { transcribeAudio, generateSummaryFromTranscript } from "@/lib/gemini-ai"
+import { transcribeAudio, generateSummaryFromAudio } from "@/lib/gemini-ai"
 import { db } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
@@ -18,9 +18,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Check rate limiting
-    const rateLimitAllowed = await rateLimitMiddleware(walletAddress, "transcription")
-    if (!rateLimitAllowed) {
+    // Simple rate limiting check
+    const { checkRateLimit } = await import("@/lib/simple-rate-limiter")
+    if (!checkRateLimit(walletAddress, 30)) {
       return NextResponse.json({ error: "Rate limit exceeded. Please try again later." }, { status: 429 })
     }
 
@@ -33,15 +33,16 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await audioResponse.arrayBuffer()
     const audioBlob = new Blob([arrayBuffer], { type: "audio/webm" })
 
-    // Step 1: Transcribe audio with circuit breaker
-    const transcriptionResult = await geminiCircuitBreaker.execute(async () => {
-      return await transcribeAudio(audioBlob, walletAddress, subscriptionTier)
-    })
-
-    // Step 2: Generate summary from transcript with circuit breaker
-    const summaryResult = await geminiCircuitBreaker.execute(async () => {
-      return await generateSummaryFromTranscript(transcriptionResult.transcript, walletAddress, subscriptionTier)
-    })
+    // Process transcription and summary in parallel for better performance
+    const [transcriptionResult, summaryResult] = await Promise.all([
+      geminiCircuitBreaker.execute(async () => {
+        return await transcribeAudio(audioBlob, walletAddress, subscriptionTier)
+      }),
+      // Generate summary from audio directly instead of waiting for transcript
+      geminiCircuitBreaker.execute(async () => {
+        return await generateSummaryFromAudio(audioBlob, walletAddress, subscriptionTier)
+      })
+    ])
 
     // Update recording in database with both transcript and summary
     await db.updateRecordingTranscript(

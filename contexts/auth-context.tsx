@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from "react"
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { useAccount } from "wagmi"
 
 interface User {
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mounted, isConnected, address])
 
-  const createUserFromWallet = async (walletAddress: string) => {
+  const createUserFromWallet = useCallback(async (walletAddress: string) => {
     try {
       setIsLoading(true)
       
@@ -83,9 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const updateProfile = async (name: string, email: string): Promise<boolean> => {
+  const updateProfile = useCallback(async (name: string, email: string): Promise<boolean> => {
     if (!user) return false
 
     try {
@@ -97,22 +97,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Profile update failed:", error)
       return false
     }
-  }
+  }, [user])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null)
-  }
+  }, [])
+
+  const contextValue = useMemo(() => ({
+    user,
+    updateProfile,
+    logout,
+    isLoading,
+    isWalletConnected: isConnected,
+  }), [user, updateProfile, logout, isLoading, isConnected])
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        updateProfile,
-        logout,
-        isLoading,
-        isWalletConnected: isConnected,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

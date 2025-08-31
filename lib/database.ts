@@ -9,9 +9,10 @@ export function getPool(): Pool {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-      max: 20, // Maximum number of clients in the pool
-      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-      connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+      max: process.env.NODE_ENV === "production" ? 5 : 20, // Fewer connections for serverless
+      idleTimeoutMillis: 10000, // Shorter idle timeout for serverless
+      connectionTimeoutMillis: 10000, // Longer connection timeout
+      allowExitOnIdle: true, // Allow process to exit when idle
     })
 
     pool.on("error", (err) => {
@@ -47,10 +48,14 @@ export async function query(text: string, params?: any[]): Promise<any> {
   try {
     const res = await pool.query(text, params)
     const duration = Date.now() - start
-    console.log("[v0] Database query executed", { text, duration, rows: res.rowCount })
+    
+    // Only log slow queries in production
+    if (process.env.NODE_ENV === "development" || duration > 1000) {
+      console.log("[v0] Database query executed", { text: text.substring(0, 100), duration, rows: res.rowCount })
+    }
     return res
   } catch (error) {
-    console.error("[v0] Database query error", { text, error })
+    console.error("[v0] Database query error", { text: text.substring(0, 100), error: error.message })
     throw error
   }
 }
