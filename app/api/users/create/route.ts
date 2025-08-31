@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/database"
+import { query } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,18 +17,34 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Authenticating user:", walletAddress)
 
     // Check if user already exists
-    let user = await db.getUserByWallet(walletAddress)
+    let userResult = await query("SELECT * FROM users WHERE wallet_address = $1", [walletAddress])
+    let user = userResult.rows[0]
     
     if (!user) {
       console.log("[v0] Creating new user for wallet:", walletAddress)
       // Create new user
-      user = await db.createUser(walletAddress)
+      const createResult = await query("INSERT INTO users (wallet_address) VALUES ($1) RETURNING *", [walletAddress])
+      user = createResult.rows[0]
       console.log("[v0] Created new user:", user.id)
 
       // Create default "Personal Growth" purpose for new user
       try {
-        await db.createDefaultPurpose(user.id)
-        console.log("[v0] Created default purpose for user:", user.id)
+        // Check if user already has any purposes
+        const existingPurposes = await query("SELECT COUNT(*) as count FROM purposes WHERE user_id = $1", [user.id])
+        
+        if (existingPurposes.rows[0].count === 0) {
+          await query(`
+            INSERT INTO purposes (user_id, name, description, is_default, color)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [
+            user.id, 
+            'Personal Growth', 
+            'Daily reflections on personal development and self-improvement',
+            true,
+            '#cdb4db'
+          ])
+          console.log("[v0] Created default purpose for user:", user.id)
+        }
       } catch (purposeError) {
         console.warn("[v0] Failed to create default purpose:", purposeError)
         // Don't fail the whole request if purpose creation fails

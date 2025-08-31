@@ -73,7 +73,177 @@ export async function getClient(): Promise<PoolClient> {
   return await pool.connect()
 }
 
-// Database helper functions
+// Individual database functions (to avoid minification issues)
+export async function createUser(walletAddress: string) {
+  const result = await query("INSERT INTO users (wallet_address) VALUES ($1) RETURNING *", [walletAddress])
+  return result.rows[0]
+}
+
+export async function getUserByWallet(walletAddress: string) {
+  const result = await query("SELECT * FROM users WHERE wallet_address = $1", [walletAddress])
+  return result.rows[0]
+}
+
+export async function updateUserProfile(userId: string, name: string, email: string) {
+  const result = await query("UPDATE users SET name = $1, email = $2, updated_at = NOW() WHERE id = $3 RETURNING *", [
+    name,
+    email,
+    userId,
+  ])
+  return result.rows[0]
+}
+
+export async function createRecording(userId: string, purposeId: string, audioUrl: string, duration: number) {
+  const result = await query(
+    "INSERT INTO recordings (user_id, purpose_id, audio_url, audio_duration) VALUES ($1, $2, $3, $4) RETURNING *",
+    [userId, purposeId, audioUrl, duration],
+  )
+  return result.rows[0]
+}
+
+export async function updateRecordingTranscript(recordingId: string, transcript: string, summary: string, insights: string) {
+  const result = await query(
+    "UPDATE recordings SET transcript = $1, summary = $2, ai_insights = $3, updated_at = NOW() WHERE id = $4 RETURNING *",
+    [transcript, summary, insights, recordingId],
+  )
+  return result.rows[0]
+}
+
+export async function getUserRecordings(userId: string, purposeId?: string) {
+  let queryText = `
+    SELECT r.*, p.name as purpose_name, p.color as purpose_color
+    FROM recordings r
+    LEFT JOIN purposes p ON r.purpose_id = p.id
+    WHERE r.user_id = $1
+  `
+  const params = [userId]
+
+  if (purposeId && purposeId !== "all") {
+    queryText += " AND r.purpose_id = $2"
+    params.push(purposeId)
+  }
+
+  queryText += " ORDER BY r.created_at DESC"
+
+  const result = await query(queryText, params)
+  return result.rows
+}
+
+export async function createSubscription(userId: string, tier: string, transactionHash: string, amountPaid: string) {
+  const endDate = new Date()
+  endDate.setMonth(endDate.getMonth() + 1) // 1 month subscription
+
+  const result = await query(
+    "INSERT INTO subscriptions (user_id, tier, transaction_hash, amount_paid, end_date) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+    [userId, tier, transactionHash, amountPaid, endDate],
+  )
+  return result.rows[0]
+}
+
+export async function getUserActiveSubscription(userId: string) {
+  const result = await query(
+    "SELECT * FROM subscriptions WHERE user_id = $1 AND status = $2 AND end_date > NOW() ORDER BY created_at DESC LIMIT 1",
+    [userId, "active"],
+  )
+  return result.rows[0]
+}
+
+export async function createChatSession(userId: string, purposeId: string, title: string) {
+  const result = await query("INSERT INTO chat_sessions (user_id, purpose_id, title) VALUES ($1, $2, $3) RETURNING *", [
+    userId,
+    purposeId,
+    title,
+  ])
+  return result.rows[0]
+}
+
+export async function addChatMessage(sessionId: string, role: string, content: string) {
+  const result = await query(
+    "INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3) RETURNING *",
+    [sessionId, role, content],
+  )
+  return result.rows[0]
+}
+
+export async function getChatSession(sessionId: string) {
+  const sessionResult = await query("SELECT * FROM chat_sessions WHERE id = $1", [sessionId])
+
+  if (sessionResult.rows.length === 0) return null
+
+  const messagesResult = await query("SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC", [
+    sessionId,
+  ])
+
+  return {
+    ...sessionResult.rows[0],
+    messages: messagesResult.rows,
+  }
+}
+
+export async function trackApiUsage(userId: string, apiType: string, tokensUsed: number, cost: number) {
+  const result = await query(
+    "INSERT INTO api_usage (user_id, api_type, tokens_used, cost) VALUES ($1, $2, $3, $4) RETURNING *",
+    [userId, apiType, tokensUsed, cost],
+  )
+  return result.rows[0]
+}
+
+export async function getUserApiUsage(userId: string, startDate: Date, endDate: Date) {
+  const result = await query(
+    "SELECT api_type, SUM(tokens_used) as total_tokens, SUM(cost) as total_cost FROM api_usage WHERE user_id = $1 AND created_at BETWEEN $2 AND $3 GROUP BY api_type",
+    [userId, startDate, endDate],
+  )
+  return result.rows
+}
+
+export async function getUserPurposes(userId: string) {
+  const result = await query(`
+    SELECT p.*, COUNT(r.id) as recording_count
+    FROM purposes p
+    LEFT JOIN recordings r ON r.purpose_id = p.id
+    WHERE p.user_id = $1
+    GROUP BY p.id
+    ORDER BY p.is_default DESC, p.created_at ASC
+  `, [userId])
+  return result.rows
+}
+
+export async function createPurpose(userId: string, name: string, description?: string, isDefault: boolean = false, color: string = '#cdb4db') {
+  const result = await query(`
+    INSERT INTO purposes (user_id, name, description, is_default, color)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
+  `, [userId, name, description, isDefault, color])
+  return result.rows[0]
+}
+
+export async function createDefaultPurpose(userId: string) {
+  // Check if user already has any purposes
+  const existingPurposes = await query("SELECT COUNT(*) as count FROM purposes WHERE user_id = $1", [userId])
+  
+  if (existingPurposes.rows[0].count > 0) {
+    console.log("[v0] User already has purposes, skipping default creation")
+    return null
+  }
+
+  // Create default purpose only if user has none
+  const result = await query(`
+    INSERT INTO purposes (user_id, name, description, is_default, color)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
+  `, [
+    userId, 
+    'Personal Growth', 
+    'Daily reflections on personal development and self-improvement',
+    true,
+    '#cdb4db'
+  ])
+  
+  console.log("[v0] Created default purpose for user:", userId)
+  return result.rows[0]
+}
+
+// Legacy db object for backward compatibility (but prefer individual functions)
 export const db = {
   // User operations
   async createUser(walletAddress: string) {

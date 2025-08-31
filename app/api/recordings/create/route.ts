@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/database";
+import { createRecording } from "@/lib/database";
 import { checkUsageLimit } from "@/lib/subscription";
 import fs from "fs/promises";
 import path from "path";
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     await fs.writeFile(localPath, buffer);
 
     // Create recording entry in database (without transcription/summary - that will be added later)
-    const newRecording = await db.createRecording(
+    const newRecording = await createRecording(
       walletAddress,
       purposeId,
       audioUrl,

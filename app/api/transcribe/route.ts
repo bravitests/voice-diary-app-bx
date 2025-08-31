@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { rateLimitMiddleware, systemMonitor, geminiCircuitBreaker } from "@/lib/rate-limiter"
 import { transcribeAudio, generateSummaryFromAudio } from "@/lib/gemini-ai"
-import { db } from "@/lib/database"
+import { updateRecordingTranscript, trackApiUsage } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     ])
 
     // Update recording in database with both transcript and summary
-    await db.updateRecordingTranscript(
+    await updateRecordingTranscript(
       recordingId, 
       transcriptionResult.transcript, 
       summaryResult.summary, 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     // Track API usage for both calls
     const totalTokensUsed = transcriptionResult.tokensUsed + summaryResult.tokensUsed
     const totalCost = transcriptionResult.cost + summaryResult.cost
-    await db.trackApiUsage(walletAddress, "transcription", totalTokensUsed, totalCost)
+    await trackApiUsage(walletAddress, "transcription", totalTokensUsed, totalCost)
 
     success = true
     console.log("[v0] Transcription API completed", { 
