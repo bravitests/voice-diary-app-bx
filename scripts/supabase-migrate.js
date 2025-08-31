@@ -10,10 +10,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 async function runSupabaseMigrations() {
-  const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
+  const connectionString = process.env.DATABASE_URL
   
   if (!connectionString) {
-    console.error('❌ DATABASE_POSTGRES_URL or DATABASE_URL not found in environment variables')
+    console.error('❌ DATABASE_URL not found in environment variables')
     
     // Don't fail the build in production if DB is not available
     if (process.env.NODE_ENV === 'production') {

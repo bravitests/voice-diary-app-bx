@@ -6,10 +6,10 @@ let isInitialized = false
 
 export function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
+    const connectionString = process.env.DATABASE_URL
 
     if (!connectionString) {
-      throw new Error("DATABASE_POSTGRES_URL or DATABASE_URL environment variable is not set")
+      throw new Error("DATABASE_URL environment variable is not set")
     }
 
     console.log("[v0] Initializing Supabase database pool for environment:", process.env.NODE_ENV)
@@ -38,7 +38,7 @@ export function getPool(): Pool {
 }
 
 async function initializeIfNeeded() {
-  const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
+  const connectionString = process.env.DATABASE_URL
   if (isInitialized || !connectionString) {
     return
   }
