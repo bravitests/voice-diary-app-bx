@@ -6,21 +6,23 @@ let isInitialized = false
 
 export function getPool(): Pool {
   if (!pool) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set")
+    const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
+
+    if (!connectionString) {
+      throw new Error("DATABASE_POSTGRES_URL or DATABASE_URL environment variable is not set")
     }
 
-    console.log("[v0] Initializing database pool for environment:", process.env.NODE_ENV)
-    
+    console.log("[v0] Initializing Supabase database pool for environment:", process.env.NODE_ENV)
+
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+      connectionString,
+      ssl: {
+        rejectUnauthorized: false, // Required for Supabase
+      },
       max: process.env.NODE_ENV === "production" ? 5 : 20, // Fewer connections for serverless
       idleTimeoutMillis: 10000, // Shorter idle timeout for serverless
       connectionTimeoutMillis: 15000, // Even longer connection timeout for Vercel
       allowExitOnIdle: true, // Allow process to exit when idle
-      // Add retry logic for connection failures
-      retryDelayMs: 1000,
     })
 
     pool.on("error", (err) => {
@@ -33,7 +35,8 @@ export function getPool(): Pool {
 }
 
 async function initializeIfNeeded() {
-  if (isInitialized || !process.env.DATABASE_URL) {
+  const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
+  if (isInitialized || !connectionString) {
     return
   }
 
@@ -41,22 +44,86 @@ async function initializeIfNeeded() {
     // Try to run a simple query to check if database is accessible
     const pool = getPool()
     await pool.query('SELECT 1')
+
+    // Check if tables exist, if not run basic setup
+    const tablesResult = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'users'
+    `)
+
+    if (tablesResult.rows[0].count === '0') {
+      console.log('[v0] Tables not found, running basic setup...')
+      await runBasicSetup(pool)
+    }
+
     isInitialized = true
   } catch (error) {
     console.log('Database not yet initialized, will be initialized on first API call')
   }
 }
 
+async function runBasicSetup(pool: Pool) {
+  try {
+    // Create essential tables if they don't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        wallet_address VARCHAR(42) UNIQUE NOT NULL,
+        name VARCHAR(255),
+        email VARCHAR(255),
+        subscription_tier VARCHAR(20) DEFAULT 'free' CHECK (subscription_tier IN ('free', 'pro')),
+        subscription_expiry TIMESTAMP WITH TIME ZONE,
+        is_admin BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS purposes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        color VARCHAR(7) DEFAULT '#cdb4db',
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS recordings (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        purpose_id UUID REFERENCES purposes(id) ON DELETE SET NULL,
+        audio_url TEXT,
+        audio_duration INTEGER,
+        transcript TEXT,
+        summary TEXT,
+        ai_insights TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    console.log('[v0] Basic database setup completed')
+  } catch (error) {
+    console.error('[v0] Basic setup failed:', error.message)
+  }
+}
+
 export async function query(text: string, params?: any[]): Promise<any> {
   await initializeIfNeeded()
-  
+
   const pool = getPool()
   const start = Date.now()
 
   try {
     const res = await pool.query(text, params)
     const duration = Date.now() - start
-    
+
     // Only log slow queries in production
     if (process.env.NODE_ENV === "development" || duration > 1000) {
       console.log("[v0] Database query executed", { text: text.substring(0, 100), duration, rows: res.rowCount })
@@ -220,7 +287,7 @@ export async function createPurpose(userId: string, name: string, description?: 
 export async function createDefaultPurpose(userId: string) {
   // Check if user already has any purposes
   const existingPurposes = await query("SELECT COUNT(*) as count FROM purposes WHERE user_id = $1", [userId])
-  
+
   if (existingPurposes.rows[0].count > 0) {
     console.log("[v0] User already has purposes, skipping default creation")
     return null
@@ -232,13 +299,13 @@ export async function createDefaultPurpose(userId: string) {
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
   `, [
-    userId, 
-    'Personal Growth', 
+    userId,
+    'Personal Growth',
     'Daily reflections on personal development and self-improvement',
     true,
     '#cdb4db'
   ])
-  
+
   console.log("[v0] Created default purpose for user:", userId)
   return result.rows[0]
 }
@@ -397,7 +464,7 @@ export const db = {
   async createDefaultPurpose(userId: string) {
     // Check if user already has any purposes
     const existingPurposes = await query("SELECT COUNT(*) as count FROM purposes WHERE user_id = $1", [userId])
-    
+
     if (existingPurposes.rows[0].count > 0) {
       console.log("[v0] User already has purposes, skipping default creation")
       return null
@@ -409,13 +476,13 @@ export const db = {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `, [
-      userId, 
-      'Personal Growth', 
+      userId,
+      'Personal Growth',
       'Daily reflections on personal development and self-improvement',
       true,
       '#cdb4db'
     ])
-    
+
     console.log("[v0] Created default purpose for user:", userId)
     return result.rows[0]
   },
