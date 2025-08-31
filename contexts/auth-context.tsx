@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createUserFromWallet = useCallback(async (walletAddress: string) => {
     try {
       setIsLoading(true)
-      
+
       // Call API to create user in database
       const response = await fetch('/api/users/create', {
         method: 'POST',
@@ -58,28 +58,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const { user: dbUser } = await response.json()
         setUser(dbUser)
-        console.log("[v0] User created/loaded from database:", dbUser.id)
+        console.log("[v0] User authenticated successfully:", dbUser.id)
       } else {
-        // Fallback to client-side user if API fails
-        const fallbackUser: User = {
-          id: walletAddress,
-          walletAddress,
-          subscriptionTier: "free",
-          isAdmin: false,
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error("[v0] Authentication failed:", errorData.error)
+
+        // Show user-friendly error instead of silent fallback
+        setUser(null)
+
+        // You could show a toast notification here
+        if (typeof window !== 'undefined') {
+          alert(`Authentication failed: ${errorData.error}. Please try refreshing the page.`)
         }
-        setUser(fallbackUser)
-        console.log("[v0] Created fallback user:", walletAddress)
       }
     } catch (error) {
-      console.error("Error creating user:", error)
-      // Fallback to client-side user
-      const fallbackUser: User = {
-        id: walletAddress,
-        walletAddress,
-        subscriptionTier: "free",
-        isAdmin: false,
+      console.error("Authentication error:", error)
+      setUser(null)
+
+      // Show network error to user
+      if (typeof window !== 'undefined') {
+        alert('Network error during authentication. Please check your connection and try again.')
       }
-      setUser(fallbackUser)
     } finally {
       setIsLoading(false)
     }

@@ -6,13 +6,21 @@ let isInitialized = false
 
 export function getPool(): Pool {
   if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set")
+    }
+
+    console.log("[v0] Initializing database pool for environment:", process.env.NODE_ENV)
+    
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
       max: process.env.NODE_ENV === "production" ? 5 : 20, // Fewer connections for serverless
       idleTimeoutMillis: 10000, // Shorter idle timeout for serverless
-      connectionTimeoutMillis: 10000, // Longer connection timeout
+      connectionTimeoutMillis: 15000, // Even longer connection timeout for Vercel
       allowExitOnIdle: true, // Allow process to exit when idle
+      // Add retry logic for connection failures
+      retryDelayMs: 1000,
     })
 
     pool.on("error", (err) => {
