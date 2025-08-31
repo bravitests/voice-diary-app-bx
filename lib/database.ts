@@ -6,7 +6,7 @@ let isInitialized = false
 
 export function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.DATABASE_POSTGRES_URL || process.env.DATABASE_URL
+    const connectionString = process.env.DATABASE_POSTGRES_URL 
 
     if (!connectionString) {
       throw new Error("DATABASE_POSTGRES_URL or DATABASE_URL environment variable is not set")
