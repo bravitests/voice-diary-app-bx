@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { checkUsageLimit } from "@/lib/subscription"
-import { generateAIResponse } from "@/lib/gemini-ai"
+import { generateChatResponse } from "@/lib/gemini-ai"
 import { db } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
@@ -34,10 +34,8 @@ ${context}
 
 Provide thoughtful, empathetic responses that help them reflect on their entries and gain insights. Keep responses conversational and supportive.`
 
-    const response = await generateAIResponse([
-      { role: "system", content: systemPrompt },
-      ...messages
-    ])
+    const result = await generateChatResponse(messages, purpose, userId, recordings)
+    const response = result.response
 
     // Save the conversation
     await db.addChatMessage(sessionId, "user", messages[messages.length - 1].content)

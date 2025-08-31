@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "node scripts/safe-migrate.js && next dev",
+    "dev": "next dev",
     "lint": "next lint",
-    "start": "node scripts/safe-migrate.js && next start",
+    "start": "next start",
     "db:migrate": "node scripts/migrate.js",
     "db:init": "./scripts/init-db.sh",
     "env:check": "node scripts/check-env.js",

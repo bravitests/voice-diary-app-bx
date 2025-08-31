@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { runAllMigrations, verifyDatabaseStructure } from "../../../scripts/migrate"
+import { runAllMigrations, verifyDatabaseStructure } from "@/lib/migrate"
 
 // API endpoint to initialize database on first request
 // This ensures database is set up when the app first starts in production

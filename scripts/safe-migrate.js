@@ -3,7 +3,17 @@
 // Safe migration script that only runs when DATABASE_URL is available
 // This prevents build failures when environment variables aren't set during build time
 
-const { runAllMigrations, verifyDatabaseStructure } = require('./migrate.js')
+async function runAllMigrations() {
+  // Import dynamically to avoid build-time issues
+  const { runAllMigrations: migrate } = await import('../lib/migrate.js')
+  return await migrate()
+}
+
+async function verifyDatabaseStructure() {
+  // Import dynamically to avoid build-time issues
+  const { verifyDatabaseStructure: verify } = await import('../lib/migrate.js')
+  return await verify()
+}
 
 async function safeMigrate() {
   // Only run if DATABASE_URL is available
