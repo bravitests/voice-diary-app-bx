@@ -71,6 +71,72 @@ export async function transcribeAudio(
   subscriptionTier: "free" | "pro" = "free",
 ): Promise<{
   transcript: string
+  tokensUsed: number
+  cost: number
+}> {
+  // Check rate limiting
+  const bucket = getUserBucket(userId)
+  if (!bucket.consume()) {
+    throw new Error("Rate limit exceeded. Please try again later.")
+  }
+
+  try {
+    const apiKey = getNextApiKey()
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+
+    // Convert blob to base64
+    const arrayBuffer = await audioBlob.arrayBuffer()
+    const base64Audio = Buffer.from(arrayBuffer).toString("base64")
+
+    const prompt = "Generate a complete, accurate transcript of the speech in this audio file."
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: base64Audio,
+          mimeType: audioBlob.type,
+        },
+      },
+      prompt,
+    ])
+
+    const response = await result.response
+    const transcript = response.text()
+
+    // Estimate token usage and cost
+    const tokensUsed = Math.ceil(transcript.length / 4) // Rough estimation
+    const cost = tokensUsed * 0.00001 // Rough cost estimation
+
+    console.log("[v0] Gemini AI transcription completed", {
+      userId,
+      tokensUsed,
+      cost,
+      subscriptionTier,
+    })
+
+    return {
+      transcript: transcript || "Transcription unavailable",
+      tokensUsed,
+      cost,
+    }
+  } catch (error) {
+    console.error("[v0] Gemini AI transcription error", { userId, error })
+
+    // Fallback response
+    return {
+      transcript: "Transcription failed. Please try again.",
+      tokensUsed: 0,
+      cost: 0,
+    }
+  }
+}
+
+export async function generateSummaryFromTranscript(
+  transcript: string,
+  userId: string,
+  subscriptionTier: "free" | "pro" = "free",
+): Promise<{
   summary: string
   insights: string
   tokensUsed: number
@@ -85,36 +151,25 @@ export async function transcribeAudio(
   try {
     const apiKey = getNextApiKey()
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
-
-    // Convert blob to base64
-    const arrayBuffer = await audioBlob.arrayBuffer()
-    const base64Audio = Buffer.from(arrayBuffer).toString("base64")
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
 
     const prompt = `
-Please analyze this voice diary entry and provide:
+Please analyze this voice diary transcript and provide:
 
-1. TRANSCRIPT: A complete, accurate transcription of the audio
-2. SUMMARY: A concise 2-3 sentence summary of the main points
-3. INSIGHTS: ${
+1. SUMMARY: A concise 2-3 sentence summary of the main points and key themes
+2. INSIGHTS: ${
       subscriptionTier === "pro"
-        ? "Detailed psychological insights, emotional patterns, and actionable recommendations for personal growth"
-        : "Basic emotional tone and key themes identified"
+        ? "Detailed psychological insights, emotional patterns, recurring themes, and actionable recommendations for personal growth and self-reflection"
+        : "Basic emotional tone, key themes, and general observations about the content"
     }
 
-Format your response as JSON with keys: transcript, summary, insights
+Transcript:
+${transcript}
+
+Format your response as JSON with keys: summary, insights
 `
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Audio,
-          mimeType: audioBlob.type,
-        },
-      },
-      prompt,
-    ])
-
+    const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
 
@@ -123,19 +178,21 @@ Format your response as JSON with keys: transcript, summary, insights
     try {
       parsedResponse = JSON.parse(text)
     } catch {
-      // Fallback if JSON parsing fails
+      // Fallback if JSON parsing fails - try to extract content
+      const summaryMatch = text.match(/summary['":\s]*([^,}]+)/i)
+      const insightsMatch = text.match(/insights['":\s]*([^}]+)/i)
+      
       parsedResponse = {
-        transcript: text,
-        summary: "Unable to generate summary",
-        insights: "Unable to generate insights",
+        summary: summaryMatch ? summaryMatch[1].replace(/['"]/g, '').trim() : "Unable to generate summary",
+        insights: insightsMatch ? insightsMatch[1].replace(/['"]/g, '').trim() : "Unable to generate insights",
       }
     }
 
     // Estimate token usage and cost
-    const tokensUsed = Math.ceil(text.length / 4) // Rough estimation
+    const tokensUsed = Math.ceil((prompt.length + text.length) / 4) // Rough estimation
     const cost = tokensUsed * 0.00001 // Rough cost estimation
 
-    console.log("[v0] Gemini AI transcription completed", {
+    console.log("[v0] Gemini AI summary completed", {
       userId,
       tokensUsed,
       cost,
@@ -143,19 +200,17 @@ Format your response as JSON with keys: transcript, summary, insights
     })
 
     return {
-      transcript: parsedResponse.transcript || "Transcription unavailable",
       summary: parsedResponse.summary || "Summary unavailable",
       insights: parsedResponse.insights || "Insights unavailable",
       tokensUsed,
       cost,
     }
   } catch (error) {
-    console.error("[v0] Gemini AI transcription error", { userId, error })
+    console.error("[v0] Gemini AI summary error", { userId, error })
 
     // Fallback response
     return {
-      transcript: "Transcription failed. Please try again.",
-      summary: "Unable to process audio",
+      summary: "Unable to process transcript",
       insights: "Processing unavailable",
       tokensUsed: 0,
       cost: 0,

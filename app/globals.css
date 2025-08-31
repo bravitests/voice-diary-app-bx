@@ -12,31 +12,44 @@
   --uranian-blue: #bde0feff;
   --light-sky-blue: #a2d2ffff;
 
-  --background: oklch(0.98 0.01 320); /* Very light thistle background */
-  --foreground: oklch(0.25 0.02 320); /* Dark text with slight thistle tint */
-  --card: oklch(0.96 0.03 320); /* Light thistle tint for cards */
+  --background: oklch(0.98 0.01 320);
+  /* Very light thistle background */
+  --foreground: oklch(0.25 0.02 320);
+  /* Dark text with slight thistle tint */
+  --card: oklch(0.96 0.03 320);
+  /* Light thistle tint for cards */
   --card-foreground: oklch(0.25 0.02 320);
   --popover: oklch(0.98 0.01 320);
   --popover-foreground: oklch(0.25 0.02 320);
-  --primary: oklch(0.75 0.08 320); /* Thistle as primary */
+  --primary: oklch(0.75 0.08 320);
+  /* Thistle as primary */
   --primary-foreground: oklch(0.98 0.01 320);
-  --secondary: oklch(0.85 0.06 350); /* Fairy tale pink for secondary */
+  --secondary: oklch(0.85 0.06 350);
+  /* Fairy tale pink for secondary */
   --secondary-foreground: oklch(0.25 0.02 320);
-  --muted: oklch(0.94 0.04 320); /* Light thistle for muted */
+  --muted: oklch(0.94 0.04 320);
+  /* Light thistle for muted */
   --muted-foreground: oklch(0.45 0.03 320);
-  --accent: oklch(0.8 0.08 10); /* Carnation pink for accents */
+  --accent: oklch(0.8 0.08 10);
+  /* Carnation pink for accents */
   --accent-foreground: oklch(0.25 0.02 320);
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.9 0.03 320);
   --input: oklch(0.98 0.02 320);
   --ring: oklch(0.7 0.15 320 / 0.3);
-  --chart-1: oklch(0.75 0.08 320); /* Thistle */
-  --chart-2: oklch(0.85 0.06 350); /* Fairy tale */
-  --chart-3: oklch(0.8 0.08 10); /* Carnation pink */
-  --chart-4: oklch(0.85 0.06 220); /* Uranian blue */
-  --chart-5: oklch(0.8 0.08 240); /* Light sky blue */
-  --radius: 0.75rem; /* Softer radius for the pastel theme */
+  --chart-1: oklch(0.75 0.08 320);
+  /* Thistle */
+  --chart-2: oklch(0.85 0.06 350);
+  /* Fairy tale */
+  --chart-3: oklch(0.8 0.08 10);
+  /* Carnation pink */
+  --chart-4: oklch(0.85 0.06 220);
+  /* Uranian blue */
+  --chart-5: oklch(0.8 0.08 240);
+  /* Light sky blue */
+  --radius: 0.75rem;
+  /* Softer radius for the pastel theme */
   --sidebar: oklch(0.95 0.05 320);
   --sidebar-foreground: oklch(0.35 0 0);
   --sidebar-primary: oklch(0.7 0.15 320);
@@ -45,23 +58,48 @@
   --sidebar-accent-foreground: oklch(0.2 0 0);
   --sidebar-border: oklch(0.9 0.03 320);
   --sidebar-ring: oklch(0.7 0.15 320 / 0.3);
+  
+  /* Modal Variables */
+  --modal-background: oklch(0.98 0.01 320);
+  --modal-foreground: oklch(0.25 0.02 320);
+  --modal-overlay: oklch(0 0 0 / 0.5);
+  --modal-border: oklch(0.9 0.03 320);
+  --modal-header-background: oklch(0.96 0.03 320);
+  --modal-header-foreground: oklch(0.25 0.02 320);
+  --modal-content-background: oklch(0.98 0.01 320);
+  --modal-button-primary: oklch(0.75 0.08 320);
+  --modal-button-primary-foreground: oklch(0.98 0.01 320);
+  --modal-button-secondary: oklch(0.94 0.04 320);
+  --modal-button-secondary-foreground: oklch(0.25 0.02 320);
+  --modal-button-success: oklch(0.6 0.15 140);
+  --modal-button-success-foreground: oklch(0.98 0.01 320);
+  --modal-button-danger: oklch(0.55 0.22 25);
+  --modal-button-danger-foreground: oklch(1 0 0);
+  --modal-visualizer-background: oklch(0.85 0.06 220);
+  --modal-visualizer-foreground: oklch(0.75 0.08 240);
+  --modal-visualizer-active: oklch(0.65 0.15 240);
 }
 
 .dark {
   /* Updated dark mode to complement the pastel colors */
-  --background: oklch(0.08 0.02 320); /* Dark with slight thistle tint */
-  --foreground: oklch(0.92 0.03 320); /* Light with thistle tint */
+  --background: oklch(0.08 0.02 320);
+  /* Dark with slight thistle tint */
+  --foreground: oklch(0.92 0.03 320);
+  /* Light with thistle tint */
   --card: oklch(0.12 0.03 320);
   --card-foreground: oklch(0.92 0.03 320);
   --popover: oklch(0.08 0.02 320);
   --popover-foreground: oklch(0.92 0.03 320);
-  --primary: oklch(0.75 0.08 320); /* Thistle for dark mode */
+  --primary: oklch(0.75 0.08 320);
+  /* Thistle for dark mode */
   --primary-foreground: oklch(0.08 0.02 320);
-  --secondary: oklch(0.85 0.06 350); /* Fairy tale pink */
+  --secondary: oklch(0.85 0.06 350);
+  /* Fairy tale pink */
   --secondary-foreground: oklch(0.08 0.02 320);
   --muted: oklch(0.16 0.03 320);
   --muted-foreground: oklch(0.65 0.04 320);
-  --accent: oklch(0.8 0.08 10); /* Carnation pink */
+  --accent: oklch(0.8 0.08 10);
+  /* Carnation pink */
   --accent-foreground: oklch(0.08 0.02 320);
   --destructive: oklch(0.6 0.25 25);
   --destructive-foreground: oklch(0.95 0.02 320);
@@ -81,6 +119,26 @@
   --sidebar-accent-foreground: oklch(0.12 0.02 320);
   --sidebar-border: oklch(0.25 0.03 320);
   --sidebar-ring: oklch(0.65 0.18 320 / 0.4);
+  
+  /* Modal Variables - Dark Mode */
+  --modal-background: oklch(0.12 0.03 320);
+  --modal-foreground: oklch(0.92 0.03 320);
+  --modal-overlay: oklch(0 0 0 / 0.7);
+  --modal-border: oklch(0.25 0.03 320);
+  --modal-header-background: oklch(0.16 0.03 320);
+  --modal-header-foreground: oklch(0.92 0.03 320);
+  --modal-content-background: oklch(0.12 0.03 320);
+  --modal-button-primary: oklch(0.75 0.08 320);
+  --modal-button-primary-foreground: oklch(0.08 0.02 320);
+  --modal-button-secondary: oklch(0.25 0.03 320);
+  --modal-button-secondary-foreground: oklch(0.92 0.03 320);
+  --modal-button-success: oklch(0.5 0.18 140);
+  --modal-button-success-foreground: oklch(0.95 0.02 320);
+  --modal-button-danger: oklch(0.6 0.25 25);
+  --modal-button-danger-foreground: oklch(0.95 0.02 320);
+  --modal-visualizer-background: oklch(0.25 0.06 220);
+  --modal-visualizer-foreground: oklch(0.35 0.08 240);
+  --modal-visualizer-active: oklch(0.65 0.15 240);
 }
 
 @theme inline {
@@ -122,12 +180,33 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Modal Color Variables */
+  --color-modal-background: var(--modal-background);
+  --color-modal-foreground: var(--modal-foreground);
+  --color-modal-overlay: var(--modal-overlay);
+  --color-modal-border: var(--modal-border);
+  --color-modal-header-background: var(--modal-header-background);
+  --color-modal-header-foreground: var(--modal-header-foreground);
+  --color-modal-content-background: var(--modal-content-background);
+  --color-modal-button-primary: var(--modal-button-primary);
+  --color-modal-button-primary-foreground: var(--modal-button-primary-foreground);
+  --color-modal-button-secondary: var(--modal-button-secondary);
+  --color-modal-button-secondary-foreground: var(--modal-button-secondary-foreground);
+  --color-modal-button-success: var(--modal-button-success);
+  --color-modal-button-success-foreground: var(--modal-button-success-foreground);
+  --color-modal-button-danger: var(--modal-button-danger);
+  --color-modal-button-danger-foreground: var(--modal-button-danger-foreground);
+  --color-modal-visualizer-background: var(--modal-visualizer-background);
+  --color-modal-visualizer-foreground: var(--modal-visualizer-foreground);
+  --color-modal-visualizer-active: var(--modal-visualizer-active);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -139,11 +218,86 @@
     --tw-gradient-to: rgb(205 180 219 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
   }
+
   .via-fairy-tale {
     --tw-gradient-to: rgb(255 200 221 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), #ffc8ddff var(--tw-gradient-via-position), var(--tw-gradient-to);
   }
+
   .to-carnation-pink {
     --tw-gradient-to: #ffafccff var(--tw-gradient-to-position);
+  }
+
+  /* Modal Utility Classes */
+  .modal-overlay {
+    background-color: var(--color-modal-overlay);
+  }
+
+  .modal-container {
+    background-color: var(--color-modal-background);
+    color: var(--color-modal-foreground);
+    border-color: var(--color-modal-border);
+  }
+
+  .modal-header {
+    background-color: var(--color-modal-header-background);
+    color: var(--color-modal-header-foreground);
+    border-color: var(--color-modal-border);
+  }
+
+  .modal-content {
+    background-color: var(--color-modal-content-background);
+  }
+
+  .modal-button-primary {
+    background-color: var(--color-modal-button-primary);
+    color: var(--color-modal-button-primary-foreground);
+  }
+
+  .modal-button-primary:hover {
+    background-color: var(--color-modal-button-primary);
+    opacity: 0.9;
+  }
+
+  .modal-button-secondary {
+    background-color: var(--color-modal-button-secondary);
+    color: var(--color-modal-button-secondary-foreground);
+  }
+
+  .modal-button-secondary:hover {
+    background-color: var(--color-modal-button-secondary);
+    opacity: 0.9;
+  }
+
+  .modal-button-success {
+    background-color: var(--color-modal-button-success);
+    color: var(--color-modal-button-success-foreground);
+  }
+
+  .modal-button-success:hover {
+    background-color: var(--color-modal-button-success);
+    opacity: 0.9;
+  }
+
+  .modal-button-danger {
+    background-color: var(--color-modal-button-danger);
+    color: var(--color-modal-button-danger-foreground);
+  }
+
+  .modal-button-danger:hover {
+    background-color: var(--color-modal-button-danger);
+    opacity: 0.9;
+  }
+
+  .modal-visualizer-bg {
+    background-color: var(--color-modal-visualizer-background);
+  }
+
+  .modal-visualizer-fg {
+    background-color: var(--color-modal-visualizer-foreground);
+  }
+
+  .modal-visualizer-active {
+    background-color: var(--color-modal-visualizer-active);
   }
 }

@@ -1,12 +1,11 @@
 "use client"
 
 import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mic, BookOpen, MessageCircle, User, Settings, Loader2, Plus } from "lucide-react"
+import { Mic, Settings, Loader2, Plus } from "lucide-react"
 import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
 
@@ -20,7 +19,6 @@ interface Purpose {
 
 export default function Dashboard() {
   const { user, logout, isLoading } = useAuth()
-  const router = useRouter()
   const [selectedPurpose, setSelectedPurpose] = useState("")
   const [purposes, setPurposes] = useState<Purpose[]>([])
   const [showRecordingModal, setShowRecordingModal] = useState(false)
@@ -30,24 +28,32 @@ export default function Dashboard() {
   const [purposeError, setPurposeError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user?.walletAddress) {
+    if (user?.walletAddress && !isLoading) {
       fetchPurposes()
     }
-  }, [user, isLoading, router])
+  }, [user?.walletAddress, isLoading])
 
   const fetchPurposes = async () => {
+    if (!user?.walletAddress) {
+      console.log("No wallet address available for fetching purposes")
+      return
+    }
+
     setLoadingPurposes(true)
     setPurposeError(null)
     try {
-      const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
+      const response = await fetch(`/api/purposes?wallet_address=${user.walletAddress}`)
       const data = await response.json()
       if (response.ok) {
-        setPurposes(data.purposes)
-        const defaultPurpose = data.purposes.find((p: Purpose) => p.is_default)
+        setPurposes(data.purposes || [])
+        const defaultPurpose = data.purposes?.find((p: Purpose) => p.is_default)
         if (defaultPurpose) {
           setSelectedPurpose(defaultPurpose.id)
+        } else if (data.purposes?.length > 0) {
+          setSelectedPurpose(data.purposes[0].id)
         }
       } else {
+        console.error("Purposes API error:", data.error)
         setPurposeError("Failed to load purposes. Please try again.")
       }
     } catch (error) {
@@ -58,7 +64,7 @@ export default function Dashboard() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -84,48 +90,51 @@ export default function Dashboard() {
   }
 
   const handleSaveRecording = async (audioBlob: Blob, duration: number) => {
-    try {
-      const formData = new FormData()
-      formData.append("audio", audioBlob, "recording.webm")
-      formData.append("walletAddress", user.walletAddress!)
-      formData.append("purposeId", selectedPurpose)
-      formData.append("duration", duration.toString())
-
-      const createResponse = await fetch("/api/recordings/create", {
-        method: "POST",
-        body: formData,
-      })
-
-      if (!createResponse.ok) {
-        throw new Error("Failed to create recording")
-      }
-
-      const { recordingId, audioUrl } = await createResponse.json()
-
-      const transcribeFormData = new FormData()
-      transcribeFormData.append("recordingId", recordingId)
-      transcribeFormData.append("audioUrl", audioUrl)
-      transcribeFormData.append("walletAddress", user.walletAddress!)
-      transcribeFormData.append("subscriptionTier", user.subscriptionTier || "free")
-
-      const transcribeResponse = await fetch("/api/transcribe", {
-        method: "POST",
-        body: transcribeFormData,
-      })
-
-      if (!transcribeResponse.ok) {
-        throw new Error("Failed to transcribe recording")
-      }
-
-      const result = await transcribeResponse.json()
-      console.log("[v0] Recording saved and transcribed:", result)
-
-      setSelectedPurpose(purposes.find((p) => p.is_default)?.id || "")
-      alert("Recording saved successfully!")
-    } catch (error) {
-      console.error("Error saving recording:", error)
-      alert("Failed to save recording. Please try again.")
+    if (!user?.walletAddress || !selectedPurpose || !audioBlob || audioBlob.size === 0 || !duration || duration < 0) {
+      throw new Error("Invalid recording data")
     }
+
+    // Save recording immediately
+    const formData = new FormData()
+    formData.append("audio", audioBlob, "recording.webm")
+    formData.append("walletAddress", user.walletAddress)
+    formData.append("purposeId", selectedPurpose)
+    formData.append("duration", duration.toString())
+
+    const createResponse = await fetch("/api/recordings/create", {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!createResponse.ok) {
+      const errorData = await createResponse.json()
+      throw new Error(errorData.error || "Failed to create recording")
+    }
+
+    const { recordingId, audioUrl } = await createResponse.json()
+    
+    // Reset to default purpose
+    const defaultPurpose = purposes.find((p) => p.is_default)
+    if (defaultPurpose) {
+      setSelectedPurpose(defaultPurpose.id)
+    }
+
+    // Show success message
+    alert("Recording saved! Processing transcription in background...")
+
+    // Process AI transcription in background (don't await)
+    fetch("/api/transcribe", {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recordingId,
+        audioUrl,
+        walletAddress: user.walletAddress,
+        subscriptionTier: user.subscriptionTier || "free"
+      })
+    }).catch(error => {
+      console.error("Background transcription failed:", error)
+    })
   }
 
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
@@ -150,7 +159,7 @@ export default function Dashboard() {
         <div className="max-w-lg mx-auto space-y-6 flex-1 flex flex-col w-full">
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
-              Welcome back, {user.name || user.walletAddress?.slice(0, 6)}!
+              Welcome back, {user?.name || user?.walletAddress?.slice(0, 6) || 'User'}!
             </h1>
             <p className="text-muted-foreground">Ready to capture your thoughts?</p>
           </div>
@@ -212,7 +221,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      
+
 
       <RecordingModal
         isOpen={showRecordingModal}
@@ -220,7 +229,7 @@ export default function Dashboard() {
         purpose={selectedPurposeData?.name || ""}
         onSave={handleSaveRecording}
       />
-      
+
       <AddPurposeModal
         isOpen={showAddPurpose}
         onClose={() => setShowAddPurpose(false)}

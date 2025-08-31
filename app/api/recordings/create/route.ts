@@ -1,54 +1,72 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { query } from "@/lib/database"
-import { audioStorage } from "@/lib/audio-storage"
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/database";
+import { checkUsageLimit } from "@/lib/subscription";
+import fs from "fs/promises";
+import path from "path";
 
-export async function POST(request: NextRequest) {
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "audio");
+
+async function ensureUploadDirExists() {
   try {
-    const formData = await request.formData()
-    const walletAddress = formData.get("walletAddress") as string
-    const purposeId = formData.get("purposeId") as string
-    const duration = Number.parseInt(formData.get("duration") as string)
-    const audioFile = formData.get("audio") as File
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  } catch (error) {
+    console.error("Error creating upload directory:", error);
+    throw new Error("Could not create upload directory.");
+  }
+}
 
-    if (!walletAddress || !purposeId || !duration || !audioFile) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const audio = formData.get("audio") as File | null;
+    const purposeId = formData.get("purposeId") as string | null;
+    const duration = formData.get("duration") as string | null;
+    const walletAddress = formData.get("walletAddress") as string | null;
+
+    if (!walletAddress) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user ID
-    const userResult = await query("SELECT id FROM users WHERE wallet_address = $1", [walletAddress])
-    if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    const isAllowed = await checkUsageLimit(walletAddress, "recording");
+    if (!isAllowed.allowed) {
+      return NextResponse.json({ error: isAllowed.reason }, { status: 402 });
     }
-    const userId = userResult.rows[0].id
 
-    // Get purpose name for filename
-    const purposeResult = await query("SELECT name FROM purposes WHERE id = $1", [purposeId])
-    const purposeName = purposeResult.rows[0]?.name || "unknown"
+    if (!audio || !purposeId || !duration) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
-    // Upload audio file
-    const filename = audioStorage.generateFilename(userId, purposeName)
-    const audioBlob = new Blob([await audioFile.arrayBuffer()], { type: audioFile.type })
-    const audioUrl = await audioStorage.uploadAudio(audioBlob, filename)
+    await ensureUploadDirExists();
 
-    // Create recording record in database
-    const result = await query(
-      `
-      INSERT INTO recordings (user_id, purpose_id, audio_url, audio_duration, created_at)
-      VALUES ($1, $2, $3, $4, NOW())
-      RETURNING id, created_at
-    `,
-      [userId, purposeId, audioUrl, duration],
-    )
+    const uniqueFilename = `${Date.now()}-${walletAddress}.webm`;
+    const localPath = path.join(UPLOAD_DIR, uniqueFilename);
+    const audioUrl = `/uploads/audio/${uniqueFilename}`;
 
-    const recording = result.rows[0]
+    const buffer = Buffer.from(await audio.arrayBuffer());
+    await fs.writeFile(localPath, buffer);
+
+    // Create recording entry in database (without transcription/summary - that will be added later)
+    const newRecording = await db.createRecording(
+      walletAddress,
+      purposeId,
+      audioUrl,
+      parseInt(duration, 10)
+    );
+
+    console.log("[v0] Recording created", {
+      recordingId: newRecording.id,
+      walletAddress,
+      audioUrl,
+      duration: parseInt(duration, 10)
+    });
 
     return NextResponse.json({
-      recordingId: recording.id,
-      audioUrl,
-      createdAt: recording.created_at,
-    })
+      recordingId: newRecording.id,
+      audioUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${audioUrl}`
+    }, { status: 201 });
+
   } catch (error) {
-    console.error("Create recording API error:", error)
-    return NextResponse.json({ error: "Failed to create recording" }, { status: 500 })
+    console.error("Error creating recording:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

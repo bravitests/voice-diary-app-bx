@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { requestQueue, rateLimitMiddleware, systemMonitor, geminiCircuitBreaker } from "@/lib/rate-limiter"
+import { rateLimitMiddleware, systemMonitor, geminiCircuitBreaker } from "@/lib/rate-limiter"
+import { transcribeAudio, generateSummaryFromTranscript } from "@/lib/gemini-ai"
 import { db } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
@@ -8,49 +9,67 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData()
-    const audioFile = formData.get("audio") as File
-    const userId = formData.get("userId") as string
     const recordingId = formData.get("recordingId") as string
-    const subscriptionTier = formData.get("subscriptionTier") as "free" | "pro"
+    const audioUrl = formData.get("audioUrl") as string
+    const walletAddress = formData.get("walletAddress") as string
+    const subscriptionTier = (formData.get("subscriptionTier") as "free" | "pro") || "free"
 
-    if (!audioFile || !userId || !recordingId) {
+    if (!recordingId || !audioUrl || !walletAddress) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     // Check rate limiting
-    const rateLimitAllowed = await rateLimitMiddleware(userId, "transcription")
+    const rateLimitAllowed = await rateLimitMiddleware(walletAddress, "transcription")
     if (!rateLimitAllowed) {
       return NextResponse.json({ error: "Rate limit exceeded. Please try again later." }, { status: 429 })
     }
 
-    // Convert file to blob
-    const arrayBuffer = await audioFile.arrayBuffer()
-    const audioBlob = new Blob([arrayBuffer], { type: audioFile.type })
+    // Fetch the audio file from the URL
+    const audioResponse = await fetch(audioUrl)
+    if (!audioResponse.ok) {
+      throw new Error("Failed to fetch audio file")
+    }
+    
+    const arrayBuffer = await audioResponse.arrayBuffer()
+    const audioBlob = new Blob([arrayBuffer], { type: "audio/webm" })
 
-    // Add to request queue with circuit breaker
-    const result = await geminiCircuitBreaker.execute(async () => {
-      return await requestQueue.addRequest(
-        userId,
-        "transcription",
-        { audioBlob, subscriptionTier },
-        subscriptionTier === "pro" ? 2 : 1, // Higher priority for pro users
-      )
+    // Step 1: Transcribe audio with circuit breaker
+    const transcriptionResult = await geminiCircuitBreaker.execute(async () => {
+      return await transcribeAudio(audioBlob, walletAddress, subscriptionTier)
     })
 
-    // Update recording in database
-    await db.updateRecordingTranscript(recordingId, result.transcript, result.summary, result.insights)
+    // Step 2: Generate summary from transcript with circuit breaker
+    const summaryResult = await geminiCircuitBreaker.execute(async () => {
+      return await generateSummaryFromTranscript(transcriptionResult.transcript, walletAddress, subscriptionTier)
+    })
 
-    // Track API usage
-    await db.trackApiUsage(userId, "transcription", result.tokensUsed, result.cost)
+    // Update recording in database with both transcript and summary
+    await db.updateRecordingTranscript(
+      recordingId, 
+      transcriptionResult.transcript, 
+      summaryResult.summary, 
+      summaryResult.insights
+    )
+
+    // Track API usage for both calls
+    const totalTokensUsed = transcriptionResult.tokensUsed + summaryResult.tokensUsed
+    const totalCost = transcriptionResult.cost + summaryResult.cost
+    await db.trackApiUsage(walletAddress, "transcription", totalTokensUsed, totalCost)
 
     success = true
-    console.log("[v0] Transcription API completed", { userId, recordingId, tokensUsed: result.tokensUsed })
+    console.log("[v0] Transcription API completed", { 
+      walletAddress, 
+      recordingId, 
+      transcriptionTokens: transcriptionResult.tokensUsed,
+      summaryTokens: summaryResult.tokensUsed,
+      totalTokens: totalTokensUsed
+    })
 
     return NextResponse.json({
       success: true,
-      transcript: result.transcript,
-      summary: result.summary,
-      insights: result.insights,
+      transcript: transcriptionResult.transcript,
+      summary: summaryResult.summary,
+      insights: summaryResult.insights,
     })
   } catch (error) {
     console.error("[v0] Transcription API error", error)

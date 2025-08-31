@@ -10,21 +10,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Wallet address required" }, { status: 400 })
     }
 
-    const user = await db.getUserByWallet(walletAddress)
+    let user = await db.getUserByWallet(walletAddress)
+    
+    // If user doesn't exist, create them
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      user = await db.createUser(walletAddress)
+      console.log("[v0] Created new user:", user.id)
     }
 
-    const result = await db.query(`
-      SELECT p.*, COUNT(r.id) as recording_count
-      FROM purposes p
-      LEFT JOIN recordings r ON r.purpose_id = p.id
-      WHERE p.user_id = $1
-      GROUP BY p.id
-      ORDER BY p.is_default DESC, p.created_at ASC
-    `, [user.id])
+    // Get user's purposes
+    let purposes = await db.getUserPurposes(user.id)
 
-    return NextResponse.json({ purposes: result.rows })
+    // If user has no purposes, create default one (this handles both new and existing users)
+    if (purposes.length === 0) {
+      const defaultPurpose = await db.createDefaultPurpose(user.id)
+      if (defaultPurpose) {
+        purposes = await db.getUserPurposes(user.id) // Fetch again after creating
+      }
+    }
+
+    return NextResponse.json({ purposes })
   } catch (error) {
     console.error("Get purposes error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -33,24 +38,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress, name, description } = await request.json()
+    const { walletAddress, name, description, color } = await request.json()
 
     if (!walletAddress || !name) {
       return NextResponse.json({ error: "Wallet address and name required" }, { status: 400 })
     }
 
-    const user = await db.getUserByWallet(walletAddress)
+    let user = await db.getUserByWallet(walletAddress)
+    
+    // Create user if they don't exist
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      user = await db.createUser(walletAddress)
     }
 
-    const result = await db.query(`
-      INSERT INTO purposes (user_id, name, description)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [user.id, name, description || null])
+    const purpose = await db.createPurpose(user.id, name, description, false, color || '#cdb4db')
 
-    return NextResponse.json({ purpose: result.rows[0] })
+    return NextResponse.json({ purpose })
   } catch (error) {
     console.error("Create purpose error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

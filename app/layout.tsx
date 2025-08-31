@@ -6,6 +6,7 @@ import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MiniKitContextProvider } from "@/providers/MiniKitProvider"
+import { ConditionalBottomNav } from "@/components/conditional-bottom-nav"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -39,6 +40,7 @@ export default function RootLayout({
             >
               <AuthProvider>
                 {children}
+                <ConditionalBottomNav />
               </AuthProvider>
             </ThemeProvider>
           </MiniKitContextProvider>

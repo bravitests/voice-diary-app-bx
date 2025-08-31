@@ -38,8 +38,8 @@ export default function ProfilePage() {
       router.push("/")
     }
     if (user) {
-      setName(user.name)
-      setEmail(user.email)
+      setName(user.name || "")
+      setEmail(user.email || "")
     }
   }, [user, isLoading, router])
 
@@ -94,8 +94,8 @@ export default function ProfilePage() {
                   <User className="w-6 h-6 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <CardTitle className="text-lg text-card-foreground">{user.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <CardTitle className="text-lg text-card-foreground">{user.name || "User"}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{user.email || "No email set"}</p>
                 </div>
                 {user.isAdmin && (
                   <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">

@@ -188,4 +188,52 @@ export const db = {
     )
     return result.rows
   },
+
+  // Purpose operations
+  async getUserPurposes(userId: string) {
+    const result = await query(`
+      SELECT p.*, COUNT(r.id) as recording_count
+      FROM purposes p
+      LEFT JOIN recordings r ON r.purpose_id = p.id
+      WHERE p.user_id = $1
+      GROUP BY p.id
+      ORDER BY p.is_default DESC, p.created_at ASC
+    `, [userId])
+    return result.rows
+  },
+
+  async createPurpose(userId: string, name: string, description?: string, isDefault: boolean = false, color: string = '#cdb4db') {
+    const result = await query(`
+      INSERT INTO purposes (user_id, name, description, is_default, color)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [userId, name, description, isDefault, color])
+    return result.rows[0]
+  },
+
+  async createDefaultPurpose(userId: string) {
+    // Check if user already has any purposes
+    const existingPurposes = await query("SELECT COUNT(*) as count FROM purposes WHERE user_id = $1", [userId])
+    
+    if (existingPurposes.rows[0].count > 0) {
+      console.log("[v0] User already has purposes, skipping default creation")
+      return null
+    }
+
+    // Create default purpose only if user has none
+    const result = await query(`
+      INSERT INTO purposes (user_id, name, description, is_default, color)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [
+      userId, 
+      'Personal Growth', 
+      'Daily reflections on personal development and self-improvement',
+      true,
+      '#cdb4db'
+    ])
+    
+    console.log("[v0] Created default purpose for user:", userId)
+    return result.rows[0]
+  },
 }

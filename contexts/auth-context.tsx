@@ -40,21 +40,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       createUserFromWallet(address)
     } else {
       setUser(null)
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }, [mounted, isConnected, address])
 
   const createUserFromWallet = async (walletAddress: string) => {
-    const newUser: User = {
-      id: walletAddress,
-      walletAddress,
-      subscriptionTier: "free",
-      isAdmin: false,
-    }
+    try {
+      setIsLoading(true)
+      
+      // Call API to create user in database
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress })
+      })
 
-    setUser(newUser)
-    console.log("[v0] Created user from wallet:", walletAddress)
+      if (response.ok) {
+        const { user: dbUser } = await response.json()
+        setUser(dbUser)
+        console.log("[v0] User created/loaded from database:", dbUser.id)
+      } else {
+        // Fallback to client-side user if API fails
+        const fallbackUser: User = {
+          id: walletAddress,
+          walletAddress,
+          subscriptionTier: "free",
+          isAdmin: false,
+        }
+        setUser(fallbackUser)
+        console.log("[v0] Created fallback user:", walletAddress)
+      }
+    } catch (error) {
+      console.error("Error creating user:", error)
+      // Fallback to client-side user
+      const fallbackUser: User = {
+        id: walletAddress,
+        walletAddress,
+        subscriptionTier: "free",
+        isAdmin: false,
+      }
+      setUser(fallbackUser)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const updateProfile = async (name: string, email: string): Promise<boolean> => {
