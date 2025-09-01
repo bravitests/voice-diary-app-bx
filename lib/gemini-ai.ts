@@ -289,7 +289,9 @@ export async function generateChatResponse(
   messages: Array<{ role: string; content: string }>,
   purpose: string,
   userId: string,
-  userRecordings: any[] = [],
+  transcriptions: string = "",
+  chatHistory: Array<{ role: string; content: string }> = [],
+  userName: string = "there"
 ): Promise<{
   response: string
   tokensUsed: number
@@ -304,37 +306,35 @@ export async function generateChatResponse(
   try {
     const apiKey = getNextApiKey()
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
+    
+    const systemInstruction = `You are a supportive AI companion for a voice diary app. You're chatting with ${userName} about their ${purpose} entries.
 
-    // Build context from user's recordings
-    const recordingContext = userRecordings
-      .filter((r) => r.purpose === purpose)
-      .slice(0, 5) // Last 5 relevant recordings
-      .map((r) => `Entry: ${r.summary || r.transcript?.substring(0, 200)}`)
-      .join("\n")
+${transcriptions ? `Here are ${userName}'s recent ${purpose} transcriptions:
+${transcriptions}
 
-    const systemPrompt = `You are a supportive AI companion for voice journaling focused on ${purpose}. 
-
-Context from user's recent ${purpose} entries:
-${recordingContext}
-
-Guidelines:
+` : ''}Guidelines:
 - Be empathetic and encouraging
-- Ask thoughtful follow-up questions
-- Provide insights based on patterns in their entries
+- Ask thoughtful follow-up questions based on their diary entries
+- Help them reflect and gain insights from their voice journaling
 - Keep responses conversational and supportive
-- Focus on personal growth and self-reflection`
+- Focus on personal growth and self-reflection
+- Reference their actual diary content when relevant`
 
-    const conversationHistory = messages.map((msg) => `${msg.role}: ${msg.content}`).join("\n")
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      systemInstruction
+    })
 
-    const fullPrompt = `${systemPrompt}\n\nConversation:\n${conversationHistory}\n\nAssistant:`
+    // Combine chat history with current messages
+    const allMessages = [...chatHistory, ...messages]
+    const conversationHistory = allMessages.map(msg => `${msg.role}: ${msg.content}`).join("\n")
 
-    const result = await model.generateContent(fullPrompt)
+    const result = await model.generateContent(conversationHistory)
     const response = await result.response
     const text = response.text()
 
     // Estimate token usage and cost
-    const tokensUsed = Math.ceil((fullPrompt.length + text.length) / 4)
+    const tokensUsed = Math.ceil((systemInstruction.length + conversationHistory.length + text.length) / 4)
     const cost = tokensUsed * 0.00001
 
     console.log("[v0] Gemini AI chat response generated", {

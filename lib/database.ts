@@ -111,6 +111,27 @@ async function runBasicSetup(pool: Pool) {
       )
     `)
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        purpose_id UUID REFERENCES purposes(id) ON DELETE SET NULL,
+        title VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_id UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+        content TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `)
+
     console.log('[v0] Basic database setup completed')
   } catch (error) {
     console.error('[v0] Basic setup failed:', error.message)
@@ -241,6 +262,25 @@ export async function getChatSession(sessionId: string) {
 
   if (sessionResult.rows.length === 0) return null
 
+  const messagesResult = await query("SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC", [
+    sessionId,
+  ])
+
+  return {
+    ...sessionResult.rows[0],
+    messages: messagesResult.rows,
+  }
+}
+
+export async function getLatestChatSession(userId: string, purposeId: string) {
+  const sessionResult = await query(
+    "SELECT * FROM chat_sessions WHERE user_id = $1 AND purpose_id = $2 ORDER BY created_at DESC LIMIT 1",
+    [userId, purposeId]
+  )
+
+  if (sessionResult.rows.length === 0) return null
+
+  const sessionId = sessionResult.rows[0].id
   const messagesResult = await query("SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC", [
     sessionId,
   ])
@@ -417,6 +457,25 @@ export const db = {
 
     if (sessionResult.rows.length === 0) return null
 
+    const messagesResult = await query("SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC", [
+      sessionId,
+    ])
+
+    return {
+      ...sessionResult.rows[0],
+      messages: messagesResult.rows,
+    }
+  },
+
+  async getLatestChatSession(userId: string, purposeId: string) {
+    const sessionResult = await query(
+      "SELECT * FROM chat_sessions WHERE user_id = $1 AND purpose_id = $2 ORDER BY created_at DESC LIMIT 1",
+      [userId, purposeId]
+    )
+
+    if (sessionResult.rows.length === 0) return null
+
+    const sessionId = sessionResult.rows[0].id
     const messagesResult = await query("SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC", [
       sessionId,
     ])

@@ -3,7 +3,7 @@
 import type React from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -23,7 +23,6 @@ import {
   Send,
   Bot,
 } from "lucide-react"
-
 
 interface Purpose {
   id: string
@@ -48,6 +47,35 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [purposes, setPurposes] = useState<Purpose[]>([])
   const [loadingPurposes, setLoadingPurposes] = useState(true)
+  const [isSettingUp, setIsSettingUp] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState(0)
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const loadingMessages = [
+    "Fetching your diary entries...",
+    "Analyzing your thoughts...",
+    "Preparing personalized insights...",
+    "Setting up your AI companion...",
+    "Almost ready to chat!"
+  ]
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  const toggleMessageExpansion = (messageId: string) => {
+    setExpandedMessages(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId)
+      } else {
+        newSet.add(messageId)
+      }
+      return newSet
+    })
+  }
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -84,7 +112,35 @@ export default function ChatPage() {
   const initializeChat = async () => {
     if (!user || !selectedPurpose) return
 
+    setIsSettingUp(true)
+    setLoadingMessage(0)
+    
+    // Rotate loading messages
+    const messageInterval = setInterval(() => {
+      setLoadingMessage(prev => (prev + 1) % loadingMessages.length)
+    }, 1000)
+
     try {
+      // First, check if there's an existing session
+      const existingSessionResponse = await fetch(`/api/chat/sessions?userId=${user.id}&purposeId=${selectedPurpose}`)
+      
+      if (existingSessionResponse.ok) {
+        const { session } = await existingSessionResponse.json()
+        
+        if (session && session.messages.length > 0) {
+          // Use existing session and messages
+          setSessionId(session.id)
+          setMessages(session.messages.map((msg: any) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            created_at: msg.created_at
+          })))
+          return
+        }
+      }
+
+      // Create new session if no existing one found
       const response = await fetch("/api/chat/session", {
         method: "POST",
         headers: {
@@ -115,13 +171,14 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Error initializing chat:", error)
       alert("Failed to start chat session. Please try again.")
+    } finally {
+      clearInterval(messageInterval)
+      setIsSettingUp(false)
     }
   }
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !selectedPurpose || !user || !sessionId) return
-
-    // Usage limits will be checked on the server side in the API route
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -189,7 +246,7 @@ export default function ChatPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
@@ -198,180 +255,233 @@ export default function ChatPage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="px-4 py-6 border-b border-border">
-        <div className="max-w-md mx-auto flex items-center justify-between">
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header - Fixed at top */}
+      <header className="flex-shrink-0 px-4 py-4 border-b border-border bg-background">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard")} className="h-8 w-8 p-0">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => router.push("/dashboard")} 
+              className="h-9 w-9 p-0"
+            >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <h1 className="text-lg font-bold text-foreground">Chat with Your Diary</h1>
+            <h1 className="text-xl font-bold text-foreground">Chat with Your Diary</h1>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
-              <MessageCircle className="w-3 h-3 text-primary-foreground" />
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <MessageCircle className="w-4 h-4 text-primary-foreground" />
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 py-6">
-        <div className="max-w-md mx-auto h-full flex flex-col">
-          {!selectedPurpose ? (
-            /* Purpose Selection */
-            <div className="flex-1 flex items-center justify-center">
-              <Card className="border-border bg-card w-full">
-                <CardContent className="p-6 space-y-4 text-center">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Bot className="w-8 h-8 text-primary" />
-                  </div>
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-bold text-card-foreground">Choose a Topic</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Select a purpose to chat about your related diary entries and get personalized insights.
-                    </p>
-                  </div>
-                  <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue placeholder="Choose a purpose to discuss" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loadingPurposes ? (
-                        <div className="flex items-center justify-center py-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        </div>
-                      ) : (
-                        purposes.map((purpose) => (
-                          <SelectItem key={purpose.id} value={purpose.id}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: purpose.color }} />
-                              {purpose.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            /* Chat Interface */
-            <>
-              {/* Purpose Header */}
-              <Card className="border-border bg-card mb-4">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${getPurposeInfo(selectedPurpose).color}20` }}>
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getPurposeInfo(selectedPurpose).color }} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-card-foreground">{getPurposeInfo(selectedPurpose).name}</p>
-                      <p className="text-xs text-muted-foreground">AI insights from your entries</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedPurpose("")
-                        setMessages([])
-                        setSessionId(null)
-                      }}
-                      className="ml-auto text-xs"
-                    >
-                      Change Topic
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Messages */}
-              <ScrollArea className="flex-1 mb-4">
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-lg p-3 ${
-                          message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-card border border-border text-card-foreground"
-                        }`}
-                      >
-                        {message.role === "assistant" && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <Bot className="w-4 h-4 text-primary" />
-                            <span className="text-xs font-medium text-primary">AI Assistant</span>
-                          </div>
-                        )}
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                        <p
-                          className={`text-xs mt-2 ${
-                            message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
-                          }`}
-                        >
-                          {new Date(message.created_at).toLocaleTimeString("en-US", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-card border border-border rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Bot className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-medium text-primary">AI Assistant</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                          <div
-                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                            style={{ animationDelay: "0.1s" }}
-                          />
-                          <div
-                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                            style={{ animationDelay: "0.2s" }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+      {/* Purpose Header - Only show when purpose is selected and not setting up */}
+      {selectedPurpose && !isSettingUp && (
+        <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-muted/30">
+          <div className="max-w-4xl mx-auto">
+            <Select 
+              value={selectedPurpose} 
+              onValueChange={(value) => {
+                setSelectedPurpose(value)
+                setMessages([])
+                setSessionId(null)
+              }}
+            >
+              <SelectTrigger className="w-full max-w-xs bg-background border-border h-10">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getPurposeInfo(selectedPurpose).color }} />
+                  <SelectValue>
+                    <span className="font-medium">{getPurposeInfo(selectedPurpose).name}</span>
+                  </SelectValue>
                 </div>
-              </ScrollArea>
+              </SelectTrigger>
+              <SelectContent>
+                {purposes.map((purpose) => (
+                  <SelectItem key={purpose.id} value={purpose.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: purpose.color }} />
+                      {purpose.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
-              {/* Input */}
-              <div className="flex gap-2">
-                <Input
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask about your entries..."
-                  className="flex-1 bg-background border-border"
-                  disabled={isTyping}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || isTyping}
-                  size="sm"
-                  className="px-3"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
+      {/* Main Content Area - Flexible */}
+      <main className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 px-4">
+          <div className="max-w-4xl mx-auto h-full flex flex-col">
+            {!selectedPurpose ? (
+              /* Purpose Selection */
+              <div className="flex-1 flex items-center justify-center py-8">
+                <Card className="border-border bg-card w-full max-w-md">
+                  <CardContent className="p-8 space-y-6 text-center">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                      <Bot className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="space-y-3">
+                      <h2 className="text-2xl font-bold text-card-foreground">Choose a Topic</h2>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Select a purpose to chat about your related diary entries and get personalized insights.
+                      </p>
+                    </div>
+                    <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
+                      <SelectTrigger className="bg-background border-border h-12">
+                        <SelectValue placeholder="Choose a purpose to discuss" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {loadingPurposes ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </div>
+                        ) : (
+                          purposes.map((purpose) => (
+                            <SelectItem key={purpose.id} value={purpose.id}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: purpose.color }} />
+                                {purpose.name}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
               </div>
-            </>
-          )}
+            ) : isSettingUp ? (
+              /* Setting Up */
+              <div className="flex-1 flex items-center justify-center py-8">
+                <Card className="border-border bg-card w-full max-w-md">
+                  <CardContent className="p-8 space-y-6 text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+                    <div className="space-y-3">
+                      <h2 className="text-xl font-semibold text-card-foreground">Setting up your chat</h2>
+                      <p className="text-muted-foreground">
+                        {loadingMessages[loadingMessage]}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              /* Chat Messages */
+              <div className="flex-1 min-h-0 py-4 pb-20">
+                <ScrollArea className="h-full">
+                  <div className="space-y-6 pb-4">
+                    {messages.map((message) => {
+                      const isLongMessage = message.role === "user" && message.content.length > 150
+                      const isExpanded = expandedMessages.has(message.id)
+                      const displayContent = isLongMessage && !isExpanded 
+                        ? message.content.substring(0, 150) + "..."
+                        : message.content
 
-          
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          {message.role === "assistant" && (
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                              <Bot className="w-5 h-5 text-primary" />
+                            </div>
+                          )}
+                          <div
+                            className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                              message.role === "user"
+                                ? "bg-primary text-primary-foreground rounded-br-md"
+                                : "bg-card border border-border text-card-foreground rounded-bl-md"
+                            }`}
+                          >
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayContent}</p>
+                            {isLongMessage && (
+                              <button
+                                onClick={() => toggleMessageExpansion(message.id)}
+                                className={`text-xs mt-2 underline hover:no-underline transition-all ${
+                                  message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
+                                }`}
+                              >
+                                {isExpanded ? "Show less" : "Show more"}
+                              </button>
+                            )}
+                            <p
+                              className={`text-xs mt-2 ${
+                                message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"
+                              }`}
+                            >
+                              {new Date(message.created_at).toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}
+                            </p>
+                          </div>
+                          {message.role === "user" && (
+                            <div className="w-10 h-10 bg-muted/50 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                              <User className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {isTyping && (
+                      <div className="flex gap-4 justify-start">
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                          <Bot className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                            <div
+                              className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                              style={{ animationDelay: "0.1s" }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                              style={{ animationDelay: "0.2s" }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
         </div>
       </main>
+
+      {/* Input Area - Fixed above bottom nav */}
+      {selectedPurpose && !isSettingUp && (
+        <div className="fixed bottom-16 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm p-4 z-10">
+          <div className="max-w-4xl mx-auto flex gap-3">
+            <Input
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask about your entries..."
+              className="flex-1 bg-background border-border h-12 text-base"
+              disabled={isTyping}
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={!inputMessage.trim() || isTyping}
+              size="lg"
+              className="px-6 h-12"
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -14,12 +14,24 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Purposes table - user-defined categories
+CREATE TABLE IF NOT EXISTS purposes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    color VARCHAR(7) DEFAULT '#cdb4db',
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Recordings table - stores voice diary entries
 CREATE TABLE IF NOT EXISTS recordings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose_id UUID REFERENCES purposes(id) ON DELETE SET NULL,
     title VARCHAR(255),
-    purpose VARCHAR(50) NOT NULL CHECK (purpose IN ('gratitude', 'reflection', 'goals', 'emotions', 'memories', 'ideas')),
     audio_url TEXT,
     audio_duration INTEGER, -- in seconds
     transcript TEXT,
@@ -46,7 +58,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    purpose VARCHAR(50) NOT NULL CHECK (purpose IN ('gratitude', 'reflection', 'goals', 'emotions', 'memories', 'ideas')),
+    purpose_id UUID REFERENCES purposes(id) ON DELETE SET NULL,
     title VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -74,7 +86,8 @@ CREATE TABLE IF NOT EXISTS api_usage (
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_users_wallet_address ON users(wallet_address);
 CREATE INDEX IF NOT EXISTS idx_recordings_user_id ON recordings(user_id);
-CREATE INDEX IF NOT EXISTS idx_recordings_purpose ON recordings(purpose);
+CREATE INDEX IF NOT EXISTS idx_recordings_purpose_id ON recordings(purpose_id);
+CREATE INDEX IF NOT EXISTS idx_purposes_user_id ON purposes(user_id);
 CREATE INDEX IF NOT EXISTS idx_recordings_created_at ON recordings(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
@@ -95,6 +108,9 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_recordings_updated_at BEFORE UPDATE ON recordings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_purposes_updated_at BEFORE UPDATE ON purposes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_chat_sessions_updated_at BEFORE UPDATE ON chat_sessions
