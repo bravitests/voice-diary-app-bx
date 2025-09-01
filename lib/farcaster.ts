@@ -1,7 +1,6 @@
-import { sdk } from '@farcaster/miniapp-sdk'
-
 export const hideSplashScreen = async (disableNativeGestures = false) => {
   try {
+    const { sdk } = await import('@farcaster/miniapp-sdk')
     await sdk.actions.ready({ disableNativeGestures })
   } catch (error) {
     console.error('Failed to hide splash screen:', error)
@@ -11,7 +10,5 @@ export const hideSplashScreen = async (disableNativeGestures = false) => {
 export const isFarcasterMiniApp = () => {
   if (typeof window === 'undefined') return false
   
-  const url = new URL(window.location.href)
-  return url.pathname.startsWith('/miniapp') || 
-         url.searchParams.get('miniApp') === 'true'
+  return window.parent !== window
 }
