@@ -137,29 +137,30 @@ export default function LandingPage() {
                   </p>
                   
                   <Wallet>
-                    <ConnectWallet className="w-full">
-                      <Button 
-                        size="lg" 
-                        className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                      >
+                    <ConnectWallet>
+                      <div className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center cursor-pointer">
                         <WalletIcon className="w-6 h-6 mr-3" />
                         Connect Wallet
-                      </Button>
+                      </div>
                     </ConnectWallet>
                     
                     <WalletDropdown>
-                      <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[280px]">
                         <Identity className="px-4 pt-4 pb-3 border-b border-border" hasCopyAddressOnClick>
                           <div className="flex items-center gap-3">
                             <Avatar className="w-10 h-10" />
                             <div className="flex-1 min-w-0">
-                              <Name className="font-medium text-card-foreground" />
-                              <Address className="text-sm text-muted-foreground" />
+                              <Name className="font-medium text-card-foreground block" />
+                              <Address className="text-sm text-muted-foreground block" />
                             </div>
                           </div>
                         </Identity>
                         <div className="p-2">
-                          <WalletDropdownDisconnect className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg transition-colors" />
+                          <WalletDropdownDisconnect>
+                            <div className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer">
+                              Disconnect
+                            </div>
+                          </WalletDropdownDisconnect>
                         </div>
                       </div>
                     </WalletDropdown>

@@ -65,7 +65,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="px-4 py-6 border-b border-border">
         <div className="max-w-md mx-auto flex items-center justify-between">
@@ -84,7 +84,7 @@ export default function ProfilePage() {
       </header>
 
       {/* Main Content */}
-      <main className="px-4 py-6">
+      <main className="px-4 py-6 pb-8">
         <div className="max-w-md mx-auto space-y-6">
           {/* User Info */}
           <Card className="border-border bg-card">
@@ -208,7 +208,6 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          
         </div>
       </main>
     </div>
