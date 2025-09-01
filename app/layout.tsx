@@ -14,6 +14,11 @@ export const metadata: Metadata = {
   title: "VoiceDiary - Your Voice, Your Story",
   description: "Transform your thoughts into a personal audio diary with AI-powered insights",
   generator: "v0.app",
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   other: {
     'fc:frame': 'vNext',
     'fc:frame:image': 'https://voice-diary-app-bx.vercel.app/logo.png',

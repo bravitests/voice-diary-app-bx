@@ -6,7 +6,7 @@ import { Mic, MessageCircle, ArrowRight, Wallet as WalletIcon, Sparkles } from "
 import { Wallet, ConnectWallet, WalletDropdown, WalletDropdownDisconnect } from "@coinbase/onchainkit/wallet"
 import { Name, Identity, Address, Avatar } from "@coinbase/onchainkit/identity"
 import { useMiniKit } from "@coinbase/onchainkit/minikit"
-import { ThemeDropdown } from "@/components/theme-dropdown"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
@@ -45,7 +45,7 @@ export default function LandingPage() {
             </div>
             <span className="font-bold text-xl text-foreground tracking-tight">VoiceDiary</span>
           </div>
-          <ThemeDropdown />
+          <ThemeToggle />
         </div>
       </header>
 
@@ -132,18 +132,13 @@ export default function LandingPage() {
             ) : (
               <div className="space-y-6">
                 <div className="text-center">
+                  <h2 className="text-xl font-semibold text-foreground mb-2">Get Started</h2>
                   <p className="text-sm text-muted-foreground mb-6">
                     Connect your wallet to begin your journey
                   </p>
                   
                   <Wallet>
-                    <ConnectWallet>
-                      <div className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center cursor-pointer">
-                        <WalletIcon className="w-6 h-6 mr-3" />
-                        Connect Wallet
-                      </div>
-                    </ConnectWallet>
-                    
+                    <ConnectWallet />
                     <WalletDropdown>
                       <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[280px]">
                         <Identity className="px-4 pt-4 pb-3 border-b border-border" hasCopyAddressOnClick>
