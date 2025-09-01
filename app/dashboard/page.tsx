@@ -28,6 +28,19 @@ export default function Dashboard() {
   const [purposeError, setPurposeError] = useState<string | null>(null)
 
   useEffect(() => {
+    const storedPurpose = localStorage.getItem("selectedPurpose");
+    if (storedPurpose) {
+      setSelectedPurpose(JSON.parse(storedPurpose));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedPurpose) {
+      localStorage.setItem("selectedPurpose", JSON.stringify(selectedPurpose));
+    }
+  }, [selectedPurpose]);
+
+  useEffect(() => {
     if (user?.walletAddress && !isLoading) {
       fetchPurposes()
     }
@@ -89,53 +102,7 @@ export default function Dashboard() {
     }
   }
 
-  const handleSaveRecording = async (audioBlob: Blob, duration: number) => {
-    if (!user?.walletAddress || !selectedPurpose || !audioBlob || audioBlob.size === 0 || !duration || duration < 0) {
-      throw new Error("Invalid recording data")
-    }
-
-    // Save recording immediately
-    const formData = new FormData()
-    formData.append("audio", audioBlob, "recording.webm")
-    formData.append("walletAddress", user.walletAddress)
-    formData.append("purposeId", selectedPurpose)
-    formData.append("duration", duration.toString())
-
-    const createResponse = await fetch("/api/recordings/create", {
-      method: "POST",
-      body: formData,
-    })
-
-    if (!createResponse.ok) {
-      const errorData = await createResponse.json()
-      throw new Error(errorData.error || "Failed to create recording")
-    }
-
-    const { recordingId, audioUrl } = await createResponse.json()
-    
-    // Reset to default purpose
-    const defaultPurpose = purposes.find((p) => p.is_default)
-    if (defaultPurpose) {
-      setSelectedPurpose(defaultPurpose.id)
-    }
-
-    // Show success message
-    alert("Recording saved! Processing transcription in background...")
-
-    // Process AI transcription in background (don't await)
-    fetch("/api/transcribe", {
-      method: "POST",
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recordingId,
-        audioUrl,
-        walletAddress: user.walletAddress,
-        subscriptionTier: user.subscriptionTier || "free"
-      })
-    }).catch(error => {
-      console.error("Background transcription failed:", error)
-    })
-  }
+  
 
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
 
@@ -226,8 +193,14 @@ export default function Dashboard() {
       <RecordingModal
         isOpen={showRecordingModal}
         onClose={() => setShowRecordingModal(false)}
-        purpose={selectedPurposeData?.name || ""}
-        onSave={handleSaveRecording}
+        purpose={selectedPurpose}
+        onSuccess={() => {
+          alert("Recording saved and processed successfully!");
+          const defaultPurpose = purposes.find((p) => p.is_default);
+          if (defaultPurpose) {
+            setSelectedPurpose(defaultPurpose.id);
+          }
+        }}
       />
 
       <AddPurposeModal

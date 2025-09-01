@@ -25,14 +25,11 @@ import {
 } from "lucide-react"
 
 
-const purposes = [
-  { value: "gratitude", label: "Gratitude", icon: Sparkles },
-  { value: "reflection", label: "Daily Reflection", icon: BookOpen },
-  { value: "goals", label: "Goals & Dreams", icon: Target },
-  { value: "emotions", label: "Emotions", icon: Heart },
-  { value: "memories", label: "Work & Career", icon: Briefcase },
-  { value: "ideas", label: "Relationships", icon: Users },
-]
+interface Purpose {
+  id: string
+  name: string
+  color: string
+}
 
 interface Message {
   id: string
@@ -49,12 +46,34 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [purposes, setPurposes] = useState<Purpose[]>([])
+  const [loadingPurposes, setLoadingPurposes] = useState(true)
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/")
     }
   }, [user, isLoading, router])
+
+  useEffect(() => {
+    if (user?.walletAddress) {
+      fetchPurposes()
+    }
+  }, [user])
+
+  const fetchPurposes = async () => {
+    try {
+      const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
+      const data = await response.json()
+      if (response.ok) {
+        setPurposes(data.purposes)
+      }
+    } catch (error) {
+      console.error("Error fetching purposes:", error)
+    } finally {
+      setLoadingPurposes(false)
+    }
+  }
 
   useEffect(() => {
     if (selectedPurpose && user) {
@@ -74,7 +93,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           userId: user.id,
           purpose: selectedPurpose,
-          title: `${purposes.find((p) => p.value === selectedPurpose)?.label} Chat`,
+          title: `${purposes.find((p) => p.id === selectedPurpose)?.name} Chat`,
         }),
       })
 
@@ -89,7 +108,7 @@ export default function ChatPage() {
       const welcomeMessage: Message = {
         id: "welcome",
         role: "assistant",
-        content: `Hi ${user.name || "there"}! I'm here to help you explore insights from your ${purposes.find((p) => p.value === selectedPurpose)?.label.toLowerCase()} entries. What would you like to discuss?`,
+        content: `Hi ${user.name || "there"}! I'm here to help you explore insights from your ${purposes.find((p) => p.id === selectedPurpose)?.name.toLowerCase()} entries. What would you like to discuss?`,
         created_at: new Date().toISOString(),
       }
       setMessages([welcomeMessage])
@@ -164,8 +183,8 @@ export default function ChatPage() {
     }
   }
 
-  const getPurposeInfo = (purposeValue: string) => {
-    return purposes.find((p) => p.value === purposeValue) || { label: purposeValue, icon: BookOpen }
+  const getPurposeInfo = (purposeId: string) => {
+    return purposes.find((p) => p.id === purposeId) || { name: "Unknown", color: "#cdb4db" }
   }
 
   if (isLoading) {
@@ -219,14 +238,20 @@ export default function ChatPage() {
                       <SelectValue placeholder="Choose a purpose to discuss" />
                     </SelectTrigger>
                     <SelectContent>
-                      {purposes.map((purpose) => (
-                        <SelectItem key={purpose.value} value={purpose.value}>
-                          <div className="flex items-center gap-2">
-                            <purpose.icon className="w-4 h-4" />
-                            {purpose.label}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {loadingPurposes ? (
+                        <div className="flex items-center justify-center py-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      ) : (
+                        purposes.map((purpose) => (
+                          <SelectItem key={purpose.id} value={purpose.id}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: purpose.color }} />
+                              {purpose.name}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </CardContent>
@@ -239,14 +264,11 @@ export default function ChatPage() {
               <Card className="border-border bg-card mb-4">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                      {(() => {
-                        const Icon = getPurposeInfo(selectedPurpose).icon
-                        return <Icon className="w-4 h-4 text-primary" />
-                      })()}
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${getPurposeInfo(selectedPurpose).color}20` }}>
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getPurposeInfo(selectedPurpose).color }} />
                     </div>
                     <div>
-                      <p className="font-medium text-card-foreground">{getPurposeInfo(selectedPurpose).label}</p>
+                      <p className="font-medium text-card-foreground">{getPurposeInfo(selectedPurpose).name}</p>
                       <p className="text-xs text-muted-foreground">AI insights from your entries</p>
                     </div>
                     <Button

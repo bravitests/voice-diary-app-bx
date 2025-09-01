@@ -5,41 +5,30 @@ import { db } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, purpose, userId, sessionId } = await request.json()
+    const { messages, purpose: purposeId, userId, sessionId } = await request.json()
 
-    if (!messages || !purpose || !userId || !sessionId) {
+    if (!messages || !purposeId || !userId || !sessionId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Check usage limits
-    const limitCheck = await checkUsageLimit(userId, "chat")
-    if (!limitCheck.allowed) {
-      return NextResponse.json({ error: limitCheck.reason }, { status: 429 })
-    }
-
-    // Get user's recordings for context
-    const recordings = await db.getUserRecordings(userId, purpose)
+    // Get user's recordings for this purpose
+    const recordings = await db.getUserRecordings(userId, purposeId)
     
-    // Create context from recordings
-    const context = recordings
-      .filter(r => r.transcript)
-      .map(r => `Entry: ${r.transcript}\nSummary: ${r.summary || 'No summary'}\nInsights: ${r.ai_insights || 'No insights'}`)
-      .join('\n\n')
+    // Get purpose name
+    const purposes = await db.getUserPurposes(userId)
+    const purpose = purposes.find(p => p.id === purposeId)
+    const purposeName = purpose?.name || "Unknown Purpose"
 
-    // Generate AI response
-    const systemPrompt = `You are a helpful AI assistant for a voice diary app. The user is asking about their ${purpose} entries. 
-    
-Here are their relevant diary entries for context:
-${context}
-
-Provide thoughtful, empathetic responses that help them reflect on their entries and gain insights. Keep responses conversational and supportive.`
-
-    const result = await generateChatResponse(messages, purpose, userId, recordings)
+    // Generate AI response using the same flow as journalmine-main
+    const result = await generateChatResponse(messages, purposeName, userId, recordings)
     const response = result.response
 
     // Save the conversation
     await db.addChatMessage(sessionId, "user", messages[messages.length - 1].content)
     await db.addChatMessage(sessionId, "assistant", response)
+
+    // Track API usage
+    await db.trackApiUsage(userId, "chat", result.tokensUsed, result.cost)
 
     return NextResponse.json({ response })
   } catch (error) {

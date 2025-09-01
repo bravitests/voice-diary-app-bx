@@ -163,10 +163,11 @@ export async function updateUserProfile(userId: string, name: string, email: str
   return result.rows[0]
 }
 
-export async function createRecording(userId: string, purposeId: string, audioUrl: string, duration: number) {
+export async function createRecording(data: { userId: string; purposeId: string; audioUrl: string; transcript: string; summary: string; insights: string; recordedAt: Date; }) {
+  const { userId, purposeId, audioUrl, transcript, summary, insights, recordedAt } = data;
   const result = await query(
-    "INSERT INTO recordings (user_id, purpose_id, audio_url, audio_duration) VALUES ($1, $2, $3, $4) RETURNING *",
-    [userId, purposeId, audioUrl, duration],
+    "INSERT INTO recordings (user_id, purpose_id, audio_url, transcript, summary, ai_insights, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+    [userId, purposeId, audioUrl, transcript, summary, insights, recordedAt],
   )
   return result.rows[0]
 }
@@ -336,10 +337,11 @@ export const db = {
   },
 
   // Recording operations
-  async createRecording(userId: string, purposeId: string, audioUrl: string, duration: number) {
+  async createRecording(data: { userId: string; purposeId: string; audioUrl: string; transcript: string; summary: string; insights: string; recordedAt: Date; }) {
+    const { userId, purposeId, audioUrl, transcript, summary, insights, recordedAt } = data;
     const result = await query(
-      "INSERT INTO recordings (user_id, purpose_id, audio_url, audio_duration) VALUES ($1, $2, $3, $4) RETURNING *",
-      [userId, purposeId, audioUrl, duration],
+      "INSERT INTO recordings (user_id, purpose_id, audio_url, transcript, summary, ai_insights, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+      [userId, purposeId, audioUrl, transcript, summary, insights, recordedAt],
     )
     return result.rows[0]
   },

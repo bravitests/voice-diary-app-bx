@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Mic, BookOpen, MessageCircle, User, Loader2, Play, Clock, ArrowLeft, Filter } from "lucide-react"
+import { Mic, BookOpen, MessageCircle, User, Loader2, Play, Pause, Clock, ArrowLeft, Filter, ChevronDown, ChevronUp } from "lucide-react"
 
 interface Purpose {
   id: string
@@ -28,6 +28,15 @@ interface Recording {
   audio_url: string
 }
 
+interface AudioState {
+  [key: string]: {
+    isPlaying: boolean
+    audio: HTMLAudioElement | null
+    progress: number
+    duration: number
+  }
+}
+
 export default function EntriesPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
@@ -36,15 +45,33 @@ export default function EntriesPage() {
   const [entries, setEntries] = useState<Recording[]>([])
   const [isLoadingEntries, setIsLoadingEntries] = useState(true)
   const [loadingPurposes, setLoadingPurposes] = useState(true)
+  const [audioStates, setAudioStates] = useState<AudioState>({})
+  const [expandedTranscripts, setExpandedTranscripts] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const storedFilter = localStorage.getItem("selectedFilter");
+    if (storedFilter) {
+      setSelectedFilter(JSON.parse(storedFilter));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedFilter) {
+      localStorage.setItem("selectedFilter", JSON.stringify(selectedFilter));
+    }
+  }, [selectedFilter]);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/")
     }
+  }, [user, isLoading, router])
+
+  useEffect(() => {
     if (user?.walletAddress) {
       fetchPurposes()
     }
-  }, [user, isLoading, router])
+  }, [user])
 
   useEffect(() => {
     if (user && !loadingPurposes) {
@@ -71,14 +98,14 @@ export default function EntriesPage() {
 
     setIsLoadingEntries(true)
     try {
-      const purposeParam = selectedFilter === "all" ? "" : `&purpose_id=${selectedFilter}`
-      const response = await fetch(`/api/recordings?wallet_address=${user.walletAddress}${purposeParam}`)
+      const purposeParam = selectedFilter === "all" ? "" : `&purposeId=${selectedFilter}`
+      const response = await fetch(`/api/entries?wallet_address=${user.walletAddress}${purposeParam}`)
       if (!response.ok) {
         throw new Error("Failed to fetch entries")
       }
 
       const data = await response.json()
-      setEntries(data.recordings || [])
+      setEntries(data.entries || [])
     } catch (error) {
       console.error("Error fetching entries:", error)
       setEntries([])
@@ -117,6 +144,78 @@ export default function EntriesPage() {
       month: "short",
       day: "numeric",
       year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    })
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
+
+  const toggleAudio = (entryId: string, audioUrl: string) => {
+    const currentState = audioStates[entryId]
+    
+    if (currentState?.isPlaying) {
+      currentState.audio?.pause()
+      setAudioStates(prev => ({
+        ...prev,
+        [entryId]: { ...prev[entryId], isPlaying: false }
+      }))
+    } else {
+      // Pause all other audio
+      Object.entries(audioStates).forEach(([id, state]) => {
+        if (state.audio && state.isPlaying) {
+          state.audio.pause()
+        }
+      })
+      
+      let audio = currentState?.audio
+      if (!audio) {
+        audio = new Audio(audioUrl)
+        
+        audio.addEventListener('loadedmetadata', () => {
+          setAudioStates(prev => ({
+            ...prev,
+            [entryId]: { ...prev[entryId], duration: audio!.duration }
+          }))
+        })
+        
+        audio.addEventListener('timeupdate', () => {
+          setAudioStates(prev => ({
+            ...prev,
+            [entryId]: { ...prev[entryId], progress: audio!.currentTime }
+          }))
+        })
+        
+        audio.addEventListener('ended', () => {
+          setAudioStates(prev => ({
+            ...prev,
+            [entryId]: { ...prev[entryId], isPlaying: false, progress: 0 }
+          }))
+        })
+      }
+      
+      audio.play()
+      setAudioStates(prev => ({
+        ...prev,
+        [entryId]: { audio, isPlaying: true, progress: prev[entryId]?.progress || 0, duration: prev[entryId]?.duration || 0 }
+      }))
+    }
+  }
+
+  const toggleTranscript = (entryId: string) => {
+    setExpandedTranscripts(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(entryId)) {
+        newSet.delete(entryId)
+      } else {
+        newSet.add(entryId)
+      }
+      return newSet
     })
   }
 
@@ -203,7 +302,6 @@ export default function EntriesPage() {
               </Card>
             ) : (
               entries.map((entry) => {
-                const entryDate = new Date(entry.created_at)
                 return (
                   <Card key={entry.id} className="border-border bg-card hover:bg-accent/5 transition-colors">
                     <CardContent className="p-4 space-y-3">
@@ -231,24 +329,76 @@ export default function EntriesPage() {
                         </div>
                       </div>
 
-                      {/* Transcript Preview */}
-                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                        {entry.transcript || entry.summary || "Processing..."}
-                      </p>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between pt-2">
-                        <Button variant="ghost" size="sm" className="text-xs">
-                          <Play className="w-3 h-3 mr-1" />
-                          Play
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          {entryDate.toLocaleTimeString("en-US", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
+                      {/* Summary */}
+                      <div className="space-y-2">
+                        <p className="text-sm text-card-foreground leading-relaxed">
+                          {entry.summary || "Processing summary..."}
                         </p>
+                        
+                        {/* Transcript Toggle */}
+                        {entry.transcript && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => toggleTranscript(entry.id)}
+                            className="text-xs p-0 h-auto text-muted-foreground hover:text-foreground"
+                          >
+                            {expandedTranscripts.has(entry.id) ? (
+                              <><ChevronUp className="w-3 h-3 mr-1" />Hide Transcript</>
+                            ) : (
+                              <><ChevronDown className="w-3 h-3 mr-1" />Show Transcript</>
+                            )}
+                          </Button>
+                        )}
+                        
+                        {/* Expanded Transcript */}
+                        {expandedTranscripts.has(entry.id) && entry.transcript && (
+                          <div className="mt-2 p-3 bg-muted/50 rounded-md border">
+                            <p className="text-xs text-muted-foreground mb-1">Full Transcript:</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {entry.transcript}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Audio Player */}
+                      <div className="space-y-2 pt-2">
+                        <div className="flex items-center justify-between">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs"
+                            onClick={() => toggleAudio(entry.id, entry.audio_url)}
+                          >
+                            {audioStates[entry.id]?.isPlaying ? (
+                              <><Pause className="w-3 h-3 mr-1" />Pause</>
+                            ) : (
+                              <><Play className="w-3 h-3 mr-1" />Play</>
+                            )}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            {formatTime(entry.created_at)}
+                          </p>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        {audioStates[entry.id]?.duration > 0 && (
+                          <div className="space-y-1">
+                            <div className="w-full bg-muted rounded-full h-1">
+                              <div 
+                                className="bg-primary h-1 rounded-full transition-all duration-100"
+                                style={{ 
+                                  width: `${(audioStates[entry.id].progress / audioStates[entry.id].duration) * 100}%` 
+                                }}
+                              />
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>{formatDuration(Math.floor(audioStates[entry.id].progress))}</span>
+                              <span>{formatDuration(Math.floor(audioStates[entry.id].duration))}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

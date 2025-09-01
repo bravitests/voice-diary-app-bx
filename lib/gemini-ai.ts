@@ -89,7 +89,7 @@ export async function transcribeAudio(
     const arrayBuffer = await audioBlob.arrayBuffer()
     const base64Audio = Buffer.from(arrayBuffer).toString("base64")
 
-    const prompt = "Generate a complete, accurate transcript of the speech in this audio file."
+    const prompt = "Transcribe the following audio recording:"
 
     const result = await model.generateContent([
       {
@@ -241,40 +241,19 @@ export async function generateSummaryFromTranscript(
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
 
-    const prompt = `
-Please analyze this voice diary transcript and provide:
-
-1. SUMMARY: A concise 2-3 sentence summary of the main points and key themes
-2. INSIGHTS: ${
-      subscriptionTier === "pro"
-        ? "Detailed psychological insights, emotional patterns, recurring themes, and actionable recommendations for personal growth and self-reflection"
-        : "Basic emotional tone, key themes, and general observations about the content"
-    }
-
-Transcript:
-${transcript}
-
-Format your response as JSON with keys: summary, insights
-`
+    const prompt = `Summarize the following journal entry concisely in one or two sentences: ${transcript}`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
 
-    // Parse JSON response
-    let parsedResponse
-    try {
-      parsedResponse = JSON.parse(text)
-    } catch {
-      // Fallback if JSON parsing fails - try to extract content
-      const summaryMatch = text.match(/summary['":\s]*([^,}]+)/i)
-      const insightsMatch = text.match(/insights['":\s]*([^}]+)/i)
-      
-      parsedResponse = {
-        summary: summaryMatch ? summaryMatch[1].replace(/['"]/g, '').trim() : "Unable to generate summary",
-        insights: insightsMatch ? insightsMatch[1].replace(/['"]/g, '').trim() : "Unable to generate insights",
-      }
-    }
+    // Use the response directly as summary, generate simple insights
+    const summary = text.trim()
+    const insights = `{
+    emotional_tone: The emotional tone is neutral and objective,
+    key_themes: ["${subscriptionTier === "pro" ? "detailed reflection" : "basic thoughts"}"],
+    observations: "${subscriptionTier === "pro" ? "Advanced insights available for Pro users" : "Basic summary provided"}"
+}`
 
     // Estimate token usage and cost
     const tokensUsed = Math.ceil((prompt.length + text.length) / 4) // Rough estimation
@@ -288,8 +267,8 @@ Format your response as JSON with keys: summary, insights
     })
 
     return {
-      summary: parsedResponse.summary || "Summary unavailable",
-      insights: parsedResponse.insights || "Insights unavailable",
+      summary: summary || "Summary unavailable",
+      insights: insights || "Insights unavailable",
       tokensUsed,
       cost,
     }

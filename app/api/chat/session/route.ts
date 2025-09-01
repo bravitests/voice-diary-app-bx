@@ -3,13 +3,13 @@ import { db } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, purpose, title } = await request.json()
+    const { userId, purpose: purposeId, title } = await request.json()
 
-    if (!userId || !purpose || !title) {
+    if (!userId || !purposeId || !title) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const session = await db.createChatSession(userId, purpose, title)
+    const session = await db.createChatSession(userId, purposeId, title)
 
     return NextResponse.json({ sessionId: session.id })
   } catch (error) {

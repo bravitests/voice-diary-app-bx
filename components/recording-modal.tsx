@@ -11,10 +11,10 @@ interface RecordingModalProps {
   isOpen: boolean
   onClose: () => void
   purpose: string
-  onSave: (audioBlob: Blob, duration: number) => void
+  onSuccess: () => void
 }
 
-export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingModalProps) {
+export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: RecordingModalProps) {
   const { user } = useAuth()
   const { resolvedTheme } = useTheme()
   const colors = getModalThemeColors(resolvedTheme || 'light')
@@ -24,6 +24,8 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
   const [audioLevel, setAudioLevel] = useState(0)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const isSavingRef = useRef(isSaving);
+  isSavingRef.current = isSaving;
   const [micError, setMicError] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
 
@@ -82,7 +84,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
       }
 
       mediaRecorderRef.current.onstop = async () => {
-        if (isSaving) {
+        if (isSavingRef.current) {
           await saveRecording()
         }
       }
@@ -199,20 +201,52 @@ export function RecordingModal({ isOpen, onClose, purpose, onSave }: RecordingMo
   }
 
   const saveRecording = async () => {
-    const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-    const recordingDuration = finalDurationRef.current || duration
-    
-    try {
-      // Call the original onSave to get user data
-      await onSave(audioBlob, recordingDuration)
-      
-      // Close modal immediately after saving
-      onClose()
-    } catch (error) {
-      console.error("Error saving recording:", error)
-      setIsSaving(false)
+    console.log("Starting save recording process...");
+    const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+    const recordingDuration = finalDurationRef.current || duration;
+
+    if (!user) {
+      console.error("User not authenticated");
+      setIsSaving(false);
+      return;
     }
-  }
+
+    const formData = new FormData();
+    formData.append("audio", audioBlob);
+    formData.append("purposeId", purpose);
+    formData.append("walletAddress", user.walletAddress);
+    formData.append("recordedAt", new Date().toISOString());
+
+    console.log("Form data to be sent:", {
+      audioSize: audioBlob.size,
+      purposeId: purpose,
+      walletAddress: user.walletAddress,
+      recordedAt: new Date().toISOString(),
+    });
+
+    try {
+      console.log("Sending request to /api/entries");
+      const response = await fetch("/api/entries", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Failed to save recording:", errorData);
+        throw new Error("Failed to save recording");
+      }
+
+      const result = await response.json();
+      console.log("Recording saved successfully:", result);
+
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error("Error saving recording:", error);
+      setIsSaving(false);
+    }
+  };
 
   const cleanup = () => {
     if (intervalRef.current) {
