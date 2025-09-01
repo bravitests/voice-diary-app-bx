@@ -50,7 +50,11 @@ export default function BillingPage() {
     proPrice,
     isLoading: contractLoading,
     error: contractError,
-    contractAddress
+    contractAddress,
+    txHash,
+    isConfirming,
+    isConfirmed,
+    debugInfo
   } = usePaymentContract()
 
   useEffect(() => {
@@ -110,28 +114,53 @@ export default function BillingPage() {
   }
 
   const handleUpgrade = async () => {
-    if (!user || !contractAddress) {
-      alert("Wallet not connected or contract not available. Please try again.")
+    console.log('=== UPGRADE BUTTON CLICKED ===')
+    console.log('User:', user)
+    console.log('Contract Address:', contractAddress)
+    console.log('Pro Price:', proPrice)
+    console.log('Contract Loading:', contractLoading)
+    
+    if (!user) {
+      alert("Please connect your wallet first.")
+      return
+    }
+    
+    if (!contractAddress) {
+      alert("Smart contract not configured. Please check environment variables.")
       return
     }
 
+    if (!proPrice) {
+      alert("Price not loaded. Please refresh and try again.")
+      return
+    }
+
+    console.log('Starting upgrade process...')
     setIsUpgrading(true)
+    
     try {
       const success = await purchaseProSubscription()
-
-      if (success) {
-        alert("Upgrade successful! Welcome to Pro!")
-        // Data will refresh automatically via the hook
-      } else {
-        alert(contractError || "Upgrade failed. Please try again.")
+      console.log('Purchase result:', success)
+      
+      if (!success) {
+        setIsUpgrading(false)
       }
     } catch (error) {
       console.error("Upgrade failed:", error)
-      alert("Upgrade failed. Please try again.")
-    } finally {
+      alert(`Upgrade failed: ${error}`)
       setIsUpgrading(false)
     }
   }
+
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirmed) {
+      alert("Upgrade successful! Welcome to Pro!")
+      setIsUpgrading(false)
+      // Refresh data
+      fetchSubscriptionData()
+    }
+  }, [isConfirmed])
 
   const handleCancel = async () => {
     if (!confirm(
@@ -196,11 +225,35 @@ export default function BillingPage() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
                   <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">{contractError}</p>
+                  <div>
+                    <p className="text-sm font-medium">Transaction Error</p>
+                    <p className="text-xs">{contractError}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Debug Info */}
+          <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+            <CardContent className="p-4">
+              <div className="text-xs space-y-1">
+                <p><strong>Debug Info:</strong></p>
+                <p>Contract: {contractAddress || 'Not configured'}</p>
+                <p>Pro Price: {proPrice || 'Loading...'} ETH</p>
+                <p>Has Active Pro: {hasActivePro ? 'Yes' : 'No'}</p>
+                <p>User Connected: {user ? 'Yes' : 'No'}</p>
+                <p>Contract Loading: {contractLoading ? 'Yes' : 'No'}</p>
+                <p>Is Upgrading: {isUpgrading ? 'Yes' : 'No'}</p>
+                <p>Wallet Address: {debugInfo?.address || 'None'}</p>
+                <p>Wallet Connected: {debugInfo?.isConnected ? 'Yes' : 'No'}</p>
+                <p>Write Error: {debugInfo?.writeError || 'None'}</p>
+                <p>Is Pending: {debugInfo?.isPending ? 'Yes' : 'No'}</p>
+                {txHash && <p>TX Hash: {txHash}</p>}
+                {contractError && <p>Error: {contractError}</p>}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Current Plan */}
           <Card className="border-border bg-card">
@@ -379,11 +432,24 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || contractLoading || !contractAddress || !pricing}
+                      disabled={isUpgrading || contractLoading || !contractAddress || !pricing || !user}
                     >
                       {(isUpgrading || contractLoading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      {isUpgrading ? "Processing..." : `Upgrade to Pro Monthly`}
+                      {isConfirming ? "Confirming Transaction..." : 
+                       isUpgrading ? "Processing..." : 
+                       `Upgrade to Pro Monthly`}
                     </Button>
+                    
+                    {txHash && (
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">
+                          Transaction: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                        </p>
+                        {isConfirming && (
+                          <p className="text-xs text-amber-600">Waiting for confirmation...</p>
+                        )}
+                      </div>
+                    )}
                     
                     {pricing && (
                       <div className="text-center">

@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { useAccount, useWriteContract, useReadContract } from 'wagmi'
+import { useState, useCallback, useEffect } from 'react'
+import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 
 // Contract ABI (simplified for the main functions)
@@ -48,75 +48,127 @@ if (typeof window !== 'undefined' && !CONTRACT_ADDRESS) {
 }
 
 export function usePaymentContract() {
-  const { address } = useAccount()
+  const { address, isConnected } = useAccount()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [txHash, setTxHash] = useState<string | null>(null)
 
-  const { writeContract } = useWriteContract()
+  // Debug logging
+  console.log('usePaymentContract - Address:', address)
+  console.log('usePaymentContract - IsConnected:', isConnected)
+  console.log('usePaymentContract - Contract Address:', CONTRACT_ADDRESS)
+
+  const { writeContract, data: writeData, error: writeError, isPending } = useWriteContract()
+  
+  // Watch for transaction hash from writeContract
+  useEffect(() => {
+    if (writeData) {
+      console.log('Transaction hash received:', writeData)
+      setTxHash(writeData)
+    }
+  }, [writeData])
+  
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt(
+    txHash ? {
+      hash: txHash as `0x${string}`,
+    } : undefined
+  )
 
   // Read PRO subscription price
-  const { data: proPrice } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: PAYMENT_CONTRACT_ABI,
-    functionName: 'subscriptionPrices',
-    args: [1], // PRO tier
-    enabled: !!CONTRACT_ADDRESS,
-  })
+  const { data: proPrice } = useReadContract(
+    CONTRACT_ADDRESS ? {
+      address: CONTRACT_ADDRESS,
+      abi: PAYMENT_CONTRACT_ABI,
+      functionName: 'subscriptionPrices',
+      args: [1], // PRO tier
+    } : undefined
+  )
 
   // Check if user has active PRO subscription
-  const { data: hasActivePro, refetch: refetchSubscription } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: PAYMENT_CONTRACT_ABI,
-    functionName: 'hasActiveProSubscription',
-    args: address ? [address] : undefined,
-    enabled: !!address && !!CONTRACT_ADDRESS,
-  })
+  const { data: hasActivePro, refetch: refetchSubscription } = useReadContract(
+    (address && CONTRACT_ADDRESS) ? {
+      address: CONTRACT_ADDRESS,
+      abi: PAYMENT_CONTRACT_ABI,
+      functionName: 'hasActiveProSubscription',
+      args: [address],
+    } : undefined
+  )
 
   // Get user subscription details
-  const { data: subscriptionDetails } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: PAYMENT_CONTRACT_ABI,
-    functionName: 'getUserSubscription',
-    args: address ? [address] : undefined,
-    enabled: !!address && !!CONTRACT_ADDRESS,
-  })
+  const { data: subscriptionDetails } = useReadContract(
+    (address && CONTRACT_ADDRESS) ? {
+      address: CONTRACT_ADDRESS,
+      abi: PAYMENT_CONTRACT_ABI,
+      functionName: 'getUserSubscription',
+      args: [address],
+    } : undefined
+  )
 
   const purchaseProSubscription = useCallback(async () => {
+    console.log('=== purchaseProSubscription called ===')
+    console.log('CONTRACT_ADDRESS:', CONTRACT_ADDRESS)
+    console.log('address:', address)
+    console.log('isConnected:', isConnected)
+    console.log('proPrice:', proPrice)
+    console.log('writeContract:', typeof writeContract)
+    
     if (!CONTRACT_ADDRESS) {
-      setError('Contract address not configured')
+      const errorMsg = 'Contract address not configured'
+      console.error(errorMsg)
+      setError(errorMsg)
       return false
     }
     
-    if (!address || !proPrice) {
-      setError('Wallet not connected or price not loaded')
+    if (!address) {
+      const errorMsg = 'Wallet not connected'
+      console.error(errorMsg)
+      setError(errorMsg)
+      return false
+    }
+    
+    if (!proPrice) {
+      const errorMsg = 'Price not loaded'
+      console.error(errorMsg)
+      setError(errorMsg)
       return false
     }
 
     setIsLoading(true)
     setError(null)
+    setTxHash(null)
 
     try {
-      await writeContract({
+      console.log('Initiating purchase with price:', formatEther(proPrice), 'ETH')
+      console.log('Contract call params:', {
+        address: CONTRACT_ADDRESS,
+        functionName: 'purchaseProSubscription',
+        value: proPrice.toString()
+      })
+      
+      writeContract({
         address: CONTRACT_ADDRESS,
         abi: PAYMENT_CONTRACT_ABI,
         functionName: 'purchaseProSubscription',
         value: proPrice,
       })
-
-      // Refetch subscription status after purchase
-      setTimeout(() => {
-        refetchSubscription()
-      }, 2000)
-
+      
+      console.log('Transaction initiated')
+      
       return true
     } catch (err: any) {
       console.error('Purchase failed:', err)
-      setError(err.message || 'Purchase failed')
+      console.error('Error details:', {
+        message: err.message,
+        shortMessage: err.shortMessage,
+        code: err.code,
+        cause: err.cause
+      })
+      setError(err.message || err.shortMessage || 'Purchase failed')
       return false
     } finally {
       setIsLoading(false)
     }
-  }, [address, proPrice, writeContract, refetchSubscription])
+  }, [address, isConnected, proPrice, writeContract])
 
   const getSubscriptionInfo = useCallback(() => {
     if (!subscriptionDetails) return null
@@ -147,8 +199,22 @@ export function usePaymentContract() {
     proPriceWei: proPrice,
     
     // Loading states
-    isLoading,
-    error,
+    isLoading: isLoading || isPending || isConfirming,
+    error: error || writeError?.message,
+    
+    // Debug info
+    debugInfo: {
+      address,
+      isConnected,
+      contractAddress: CONTRACT_ADDRESS,
+      writeError: writeError?.message,
+      isPending
+    },
+    
+    // Transaction status
+    txHash,
+    isConfirming,
+    isConfirmed,
     
     // Utils
     refetchSubscription,
