@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
+import { put } from '@vercel/blob';
 import { db } from "@/lib/database";
 import { transcribeAudio, generateSummaryFromTranscript } from "@/lib/gemini-ai";
 
@@ -54,22 +52,22 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     console.log("User found:", userId);
 
-    // 1. Save the audio file
-    console.log("Saving audio file...");
-    const uploadsDir = join(process.cwd(), "public", "uploads", "audio");
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
+    // 1. Save the audio file to Vercel Blob
+    console.log("Uploading audio file to Vercel Blob...");
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
-    const filename = `${timestamp}-${random}.webm`;
-    const filepath = join(uploadsDir, filename);
-    const publicUrl = `/uploads/audio/${filename}`;
-
+    const filename = `audio/${timestamp}-${random}.webm`;
+    
     const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
-    console.log("Audio file saved to:", filepath);
+    
+    const blob = await put(filename, buffer, {
+      access: 'public',
+      contentType: audioFile.type || 'audio/webm'
+    });
+    
+    const publicUrl = blob.url;
+    console.log("Audio file uploaded to:", publicUrl);
 
     // 2. Transcribe the audio
     console.log("Transcribing audio with Gemini API...");

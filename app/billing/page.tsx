@@ -40,6 +40,8 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null)
   const [usage, setUsage] = useState<UsageStats | null>(null)
   const [isUpgrading, setIsUpgrading] = useState(false)
+  const [pricing, setPricing] = useState(null)
+  const [dataError, setDataError] = useState<string | null>(null)
 
   const {
     purchaseProSubscription,
@@ -60,13 +62,25 @@ export default function BillingPage() {
   useEffect(() => {
     if (user) {
       fetchSubscriptionData()
+      fetchPricing()
     }
   }, [user, hasActivePro, subscriptionInfo])
+
+  const fetchPricing = async () => {
+    try {
+      const response = await fetch('/api/admin/pricing')
+      const data = await response.json()
+      setPricing(data.pricing)
+    } catch (error) {
+      console.error('Failed to fetch pricing:', error)
+    }
+  }
 
   const fetchSubscriptionData = async () => {
     if (!user) return
 
     try {
+      setDataError(null)
       // Use contract data for subscription status
       const isActive = hasActivePro
 
@@ -82,42 +96,16 @@ export default function BillingPage() {
         },
       })
 
-      // Fetch usage stats from API or use mock data
-      try {
-        const response = await fetch(`/api/usage?userId=${user.id}`)
-        if (response.ok) {
-          const usageData = await response.json()
-          setUsage(usageData)
-        } else {
-          throw new Error('API not available')
-        }
-      } catch {
-        // Fallback to mock data
-        setUsage({
-          entriesThisMonth: 12,
-          chatMessagesThisMonth: 8,
-          storageMB: 245,
-        })
+      // Fetch usage stats from API
+      const response = await fetch(`/api/usage?userId=${user.id}`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch usage data: ${response.status} ${response.statusText}`)
       }
+      const usageData = await response.json()
+      setUsage(usageData)
     } catch (error) {
       console.error("Error fetching subscription data:", error)
-      // Fallback to free tier
-      setSubscription({
-        tier: "free",
-        expiry: null,
-        isExpired: false,
-        limits: {
-          maxRecordingDuration: 120,
-          maxEntriesPerMonth: 50,
-          maxChatMessagesPerMonth: 20,
-          maxStorageGB: 1,
-        },
-      })
-      setUsage({
-        entriesThisMonth: 12,
-        chatMessagesThisMonth: 8,
-        storageMB: 245,
-      })
+      setDataError(error instanceof Error ? error.message : "Failed to load subscription data")
     }
   }
 
@@ -243,12 +231,28 @@ export default function BillingPage() {
             </CardContent>
           </Card>
 
+          {/* Data Error */}
+          {dataError && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                  <AlertCircle className="w-4 h-4" />
+                  <div>
+                    <p className="text-sm font-medium">Failed to load data</p>
+                    <p className="text-xs">{dataError}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Usage Stats with Progress Bars */}
-          <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-base text-card-foreground">Usage This Month</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          {usage && subscription && (
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-base text-card-foreground">Usage This Month</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
               {/* Voice Entries */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -301,8 +305,9 @@ export default function BillingPage() {
                 </div>
                 <Progress value={(usage.storageMB / (subscription.limits.maxStorageGB * 1024)) * 100} className="h-2" />
               </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Upgrade Plans */}
           {currentPlan === "free" && (
@@ -321,10 +326,22 @@ export default function BillingPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-card-foreground">
-                      {proPrice ? `${proPrice} ETH` : '...'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">per month (~$15 USD)</div>
+                    {pricing ? (
+                      <div>
+                        <div className="text-3xl font-bold text-card-foreground">
+                          ${pricing.monthly.usd}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          KSh {pricing.monthly.ksh.toLocaleString()} • {pricing.monthly.eth} ETH
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">per month</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-3xl font-bold text-card-foreground">...</div>
+                        <div className="text-sm text-muted-foreground">Loading pricing...</div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -358,14 +375,24 @@ export default function BillingPage() {
                     </div>
                   </div>
 
-                  <Button
-                    className="w-full"
-                    onClick={handleUpgrade}
-                    disabled={isUpgrading || contractLoading || !contractAddress || !proPrice}
-                  >
-                    {(isUpgrading || contractLoading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {isUpgrading ? "Processing..." : `Upgrade to Pro${proPrice ? ` (${proPrice} ETH)` : ''}`}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      className="w-full"
+                      onClick={handleUpgrade}
+                      disabled={isUpgrading || contractLoading || !contractAddress || !pricing}
+                    >
+                      {(isUpgrading || contractLoading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {isUpgrading ? "Processing..." : `Upgrade to Pro Monthly`}
+                    </Button>
+                    
+                    {pricing && (
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">
+                          Yearly: ${pricing.yearly.usd} (KSh {pricing.yearly.ksh.toLocaleString()}) - Save 2 months!
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   {!contractAddress && (
                     <p className="text-xs text-muted-foreground text-center">
@@ -401,7 +428,9 @@ export default function BillingPage() {
                         {nextBillingDate ? nextBillingDate.toLocaleDateString() : "Current"}
                       </p>
                     </div>
-                    <span className="font-medium text-card-foreground">{proPrice || '0.01'} ETH</span>
+                    <span className="font-medium text-card-foreground">
+                      {pricing ? `$${pricing.monthly.usd}` : '...'}
+                    </span>
                   </div>
                 </div>
               )}

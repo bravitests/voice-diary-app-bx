@@ -3,7 +3,7 @@ import { query } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress } = await request.json()
+    const { walletAddress, name, email } = await request.json()
 
     if (!walletAddress) {
       return NextResponse.json({ error: "Wallet address required" }, { status: 400 })
@@ -16,16 +16,27 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Authenticating user:", walletAddress)
 
-    // Check if user already exists
-    let userResult = await query("SELECT * FROM users WHERE wallet_address = $1", [walletAddress])
+    // Check if user already exists (case-insensitive)
+    let userResult = await query("SELECT * FROM users WHERE LOWER(wallet_address) = LOWER($1)", [walletAddress])
     let user = userResult.rows[0]
     
     if (!user) {
       console.log("[v0] Creating new user for wallet:", walletAddress)
-      // Create new user
-      const createResult = await query("INSERT INTO users (wallet_address) VALUES ($1) RETURNING *", [walletAddress])
+      // Create new user with name and email if provided
+      const createResult = await query(
+        "INSERT INTO users (wallet_address, name, email) VALUES ($1, $2, $3) RETURNING *", 
+        [walletAddress.toLowerCase(), name || null, email || null]
+      )
       user = createResult.rows[0]
       console.log("[v0] Created new user:", user.id)
+    } else if (name || email) {
+      // Update existing user with name/email if provided
+      console.log("[v0] Updating user profile:", user.id)
+      const updateResult = await query(
+        "UPDATE users SET name = COALESCE($2, name), email = COALESCE($3, email) WHERE LOWER(wallet_address) = LOWER($1) RETURNING *",
+        [walletAddress, name || null, email || null]
+      )
+      user = updateResult.rows[0]
 
       // Create default "Personal Growth" purpose for new user
       try {

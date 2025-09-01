@@ -26,11 +26,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useAccount()
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start as true to handle initial load
 
+  // STEP 1: On initial mount, check for a user in localStorage first.
+  // This is the highest priority and provides an instant "logged in" experience.
   useEffect(() => {
-    setMounted(true);
     try {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
@@ -38,85 +38,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-    } else {
+      // If parsing fails, ensure corrupted data is cleared
       localStorage.removeItem("user");
+    } finally {
+      // We are done with the initial check, so we can stop loading.
+      setIsLoading(false);
     }
-  }, [user]);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  useEffect(() => {
-    if (!mounted) return
-
-    if (isConnected && address) {
-      createUserFromWallet(address)
-    } else {
-      setUser(null)
-      setIsLoading(false)
-    }
-  }, [mounted, isConnected, address])
-
+  // The function to create or fetch a user from your backend
   const createUserFromWallet = useCallback(async (walletAddress: string) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true)
-
-      // Call API to create user in database
       const response = await fetch('/api/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress })
-      })
+      });
 
       if (response.ok) {
-        const { user: dbUser } = await response.json()
-        setUser(dbUser)
-        console.log("[v0] User authenticated successfully:", dbUser.id)
+        const { user: dbUser } = await response.json();
+        setUser(dbUser);
+        // Persist the new user session to localStorage
+        localStorage.setItem("user", JSON.stringify(dbUser));
+        console.log("User authenticated and stored in localStorage:", dbUser.id);
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error("[v0] Authentication failed:", errorData.error)
-
-        // Show user-friendly error instead of silent fallback
-        setUser(null)
-
-        // You could show a toast notification here
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error("Authentication API call failed:", errorData.error);
         if (typeof window !== 'undefined') {
-          alert(`Authentication failed: ${errorData.error}. Please try refreshing the page.`)
+          alert(`Authentication failed: ${errorData.error}.`);
         }
       }
     } catch (error) {
-      console.error("Authentication error:", error)
-      setUser(null)
-
-      // Show network error to user
+      console.error("Network or authentication error:", error);
       if (typeof window !== 'undefined') {
-        alert('Network error during authentication. Please check your connection and try again.')
+        alert('A network error occurred during authentication. Please try again.');
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
+
+  // STEP 2: Only if there's no user from localStorage, we treat wallet connection
+  // as a "login" event.
+  useEffect(() => {
+    // This effect will only run if:
+    // 1. The wallet is connected (`isConnected` and `address` are available)
+    // 2. There is NO user currently in the state (`!user`)
+    if (isConnected && address && !user) {
+      createUserFromWallet(address);
+    }
+  }, [isConnected, address, user, createUserFromWallet]);
 
   const updateProfile = useCallback(async (name: string, email: string): Promise<boolean> => {
-    if (!user) return false
+    if (!user) return false;
 
     try {
-      const updatedUser = { ...user, name, email }
-      setUser(updatedUser)
-      console.log("[v0] Updated user profile:", { name, email })
-      return true
+      const updatedUser = { ...user, name, email };
+      setUser(updatedUser);
+      // Ensure the updated profile is saved to localStorage
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      console.log("User profile updated and saved to localStorage.");
+      // You should also send this update to your backend API
+      return true;
     } catch (error) {
-      console.error("Profile update failed:", error)
-      return false
+      console.error("Profile update failed:", error);
+      return false;
     }
-  }, [user])
+  }, [user]);
 
   const logout = useCallback(() => {
-    setUser(null)
-  }, [])
+    setUser(null);
+    // This is the only place where the user is intentionally removed from localStorage
+    localStorage.removeItem("user");
+    console.log("User logged out and removed from localStorage.");
+  }, []);
 
   const contextValue = useMemo(() => ({
     user,
@@ -124,19 +120,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     isLoading,
     isWalletConnected: isConnected,
-  }), [user, updateProfile, logout, isLoading, isConnected])
+  }), [user, updateProfile, logout, isLoading, isConnected]);
 
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

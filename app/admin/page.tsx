@@ -2,10 +2,13 @@
 
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   Loader2,
   ArrowLeft,
@@ -20,22 +23,76 @@ import {
   Crown,
   DollarSign,
   ExternalLink,
+  Edit,
 } from "lucide-react"
-import { usePaymentContract } from "@/hooks/usePaymentContract"
-
 export default function AdminPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const { contractAddress, proPrice } = usePaymentContract()
+  const [pricing, setPricing] = useState(null)
+  const [newPrice, setNewPrice] = useState('')
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false)
 
   useEffect(() => {
+    console.log('Admin page - user:', user, 'isLoading:', isLoading)
+    
     if (!isLoading && !user) {
+      console.log('No user, redirecting to home')
       router.push("/")
+      return
     }
+    
     if (!isLoading && user && !user.isAdmin) {
+      console.log('User not admin, redirecting to dashboard. User admin status:', user.isAdmin)
       router.push("/dashboard")
+      return
+    }
+    
+    if (user?.isAdmin) {
+      console.log('User is admin, fetching pricing')
+      fetchPricing()
     }
   }, [user, isLoading, router])
+
+  const fetchPricing = async () => {
+    try {
+      const response = await fetch('/api/admin/pricing')
+      const data = await response.json()
+      setPricing(data.pricing)
+    } catch (error) {
+      console.error('Failed to fetch pricing:', error)
+    }
+  }
+
+  const updatePricing = async () => {
+    if (!newPrice || !user) return
+    
+    setIsUpdatingPrice(true)
+    try {
+      const response = await fetch('/api/admin/pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: user.walletAddress,
+          newPriceUSD: parseFloat(newPrice),
+          action: 'updatePrice'
+        })
+      })
+      
+      const data = await response.json()
+      if (data.success) {
+        setPricing(data.newPricing)
+        setNewPrice('')
+        alert('Pricing updated successfully!')
+      } else {
+        alert('Failed to update pricing: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Update pricing error:', error)
+      alert('Failed to update pricing')
+    } finally {
+      setIsUpdatingPrice(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -45,7 +102,27 @@ export default function AdminPage() {
     )
   }
 
-  if (!user || !user.isAdmin) return null
+  if (!user) {
+    console.log('No user found, showing null')
+    return null
+  }
+  
+  if (!user.isAdmin) {
+    console.log('User is not admin:', user)
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-xl font-bold mb-2">Access Denied</h1>
+          <p className="text-muted-foreground mb-4">You need admin privileges to access this page.</p>
+          <p className="text-xs text-muted-foreground">Wallet: {user.walletAddress}</p>
+          <p className="text-xs text-muted-foreground">Admin: {String(user.isAdmin)}</p>
+          <Button onClick={() => router.push('/dashboard')} className="mt-4">
+            Go to Dashboard
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,155 +144,133 @@ export default function AdminPage() {
       </header>
 
       {/* Main Content */}
-      <main className="px-4 py-6">
+      <main className="px-4 py-6 pb-24">
         <div className="max-w-md mx-auto space-y-6">
-          {/* Overview Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="border-border bg-card">
-              <CardContent className="p-4 text-center">
-                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="text-2xl font-bold text-card-foreground">1,247</div>
-                <div className="text-xs text-muted-foreground">Total Users</div>
-              </CardContent>
-            </Card>
+          {/* Admin Info */}
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="text-base text-card-foreground flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Admin Account
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Name</span>
+                <span className="text-sm font-medium">{user.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Email</span>
+                <span className="text-sm font-medium">{user.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Wallet</span>
+                <span className="text-xs font-mono">{user.walletAddress.slice(0, 8)}...{user.walletAddress.slice(-6)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <Badge variant="secondary" className="bg-green-100 text-green-800">Admin</Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="border-border bg-card">
-              <CardContent className="p-4 text-center">
-                <div className="w-8 h-8 bg-yellow-500/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <Crown className="w-4 h-4 text-yellow-500" />
-                </div>
-                <div className="text-2xl font-bold text-card-foreground">89</div>
-                <div className="text-xs text-muted-foreground">Pro Subscribers</div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-card">
-              <CardContent className="p-4 text-center">
-                <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <DollarSign className="w-4 h-4 text-green-500" />
-                </div>
-                <div className="text-2xl font-bold text-card-foreground">2.45</div>
-                <div className="text-xs text-muted-foreground">ETH Revenue</div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-card">
-              <CardContent className="p-4 text-center">
-                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <Mic className="w-4 h-4 text-primary" />
-                </div>
-                <div className="text-2xl font-bold text-card-foreground">8,932</div>
-                <div className="text-xs text-muted-foreground">Voice Entries</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Contract Info */}
-          {contractAddress && (
+          {/* Pricing Management */}
+          {pricing && (
             <Card className="border-border bg-card">
               <CardHeader>
-                <CardTitle className="text-base text-card-foreground flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  Payment Contract
+                <CardTitle className="text-base text-card-foreground flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Subscription Pricing
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Update Pricing</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="newPrice">New Monthly Price (USD)</Label>
+                          <Input
+                            id="newPrice"
+                            type="number"
+                            step="0.01"
+                            value={newPrice}
+                            onChange={(e) => setNewPrice(e.target.value)}
+                            placeholder="10.00"
+                          />
+                        </div>
+                        <Button 
+                          onClick={updatePricing} 
+                          disabled={isUpdatingPrice || !newPrice}
+                          className="w-full"
+                        >
+                          {isUpdatingPrice ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Update Pricing'
+                          )}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Contract Address</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono text-card-foreground">
-                      {contractAddress.slice(0, 8)}...{contractAddress.slice(-6)}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(`https://basescan.org/address/${contractAddress}`, "_blank")}
-                      className="h-6 w-6 p-0"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                    </Button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Monthly</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">${pricing.monthly.usd}</p>
+                      <p className="text-xs text-muted-foreground">KSh {pricing.monthly.ksh.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{pricing.monthly.eth} ETH</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Pro Price</span>
-                  <Badge variant="secondary">
-                    {proPrice || '0.01'} ETH/month
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Network</span>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    Base
-                  </Badge>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Yearly (10 months)</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">${pricing.yearly.usd}</p>
+                      <p className="text-xs text-muted-foreground">KSh {pricing.yearly.ksh.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{pricing.yearly.eth} ETH</p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Recent Activity */}
+          {/* Contract Info */}
           <Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="text-base text-card-foreground flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Recent Activity
+                <Shield className="w-4 h-4" />
+                Payment Contract
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-sm text-card-foreground">New user registered</span>
-                </div>
-                <span className="text-xs text-muted-foreground">2m ago</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <Badge variant="secondary">
+                  Not Deployed
+                </Badge>
               </div>
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-                  <span className="text-sm text-card-foreground">Pro subscription purchased (0.01 ETH)</span>
-                </div>
-                <span className="text-xs text-muted-foreground">5m ago</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full" />
-                  <span className="text-sm text-card-foreground">Voice entry recorded</span>
-                </div>
-                <span className="text-xs text-muted-foreground">8m ago</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Network</span>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  Base
+                </Badge>
               </div>
             </CardContent>
           </Card>
 
-          {/* System Health */}
-          <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-base text-card-foreground flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                System Health
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">API Response Time</span>
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  142ms
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Server Uptime</span>
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  99.9%
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Storage Usage</span>
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                  78%
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+
+
+
 
           {/* Quick Actions */}
           <div className="space-y-3">
@@ -227,7 +282,7 @@ export default function AdminPage() {
               onClick={() => router.push("/admin/users")}
             >
               <Users className="w-4 h-4" />
-              Manage Users
+              Manage Users & Subscriptions
             </Button>
 
             <Button variant="outline" className="w-full justify-start gap-3 h-12 bg-transparent">
@@ -249,35 +304,7 @@ export default function AdminPage() {
             </Button>
           </div>
 
-          {/* Recent Users */}
-          <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-base text-card-foreground">Recent Users</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm font-medium text-card-foreground">Sarah Johnson</p>
-                  <p className="text-xs text-muted-foreground">sarah@example.com</p>
-                </div>
-                <Badge variant="secondary">Pro</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm font-medium text-card-foreground">Mike Chen</p>
-                  <p className="text-xs text-muted-foreground">mike@example.com</p>
-                </div>
-                <Badge variant="outline">Free</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="text-sm font-medium text-card-foreground">Emma Davis</p>
-                  <p className="text-xs text-muted-foreground">emma@example.com</p>
-                </div>
-                <Badge variant="secondary">Pro</Badge>
-              </div>
-            </CardContent>
-          </Card>
+
         </div>
       </main>
     </div>

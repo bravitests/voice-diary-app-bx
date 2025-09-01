@@ -1,5 +1,5 @@
 // Subscription management and tier enforcement
-import { db } from "@/lib/database"
+import { query } from "@/lib/database"
 import { updateUserRateLimit } from "@/lib/gemini-ai"
 
 export interface SubscriptionLimits {
@@ -45,7 +45,7 @@ export const SUBSCRIPTION_PRICES = {
 
 export async function getUserSubscriptionStatus(userId: string) {
   try {
-    const user = await db.query("SELECT subscription_tier, subscription_expiry FROM users WHERE id = $1", [userId])
+    const user = await query("SELECT subscription_tier, subscription_expiry FROM users WHERE id = $1", [userId])
 
     if (user.rows.length === 0) {
       throw new Error("User not found")
@@ -85,13 +85,13 @@ export async function getUserUsageStats(userId: string) {
     nextMonth.setMonth(nextMonth.getMonth() + 1)
 
     // Get recordings count for current month
-    const recordingsResult = await db.query(
+    const recordingsResult = await query(
       "SELECT COUNT(*) as count FROM recordings WHERE user_id = $1 AND created_at >= $2 AND created_at < $3",
       [userId, currentMonth, nextMonth],
     )
 
     // Get chat messages count for current month
-    const chatResult = await db.query(
+    const chatResult = await query(
       `SELECT COUNT(*) as count FROM chat_messages cm 
        JOIN chat_sessions cs ON cm.session_id = cs.id 
        WHERE cs.user_id = $1 AND cm.role = 'user' AND cm.created_at >= $2 AND cm.created_at < $3`,
@@ -99,7 +99,7 @@ export async function getUserUsageStats(userId: string) {
     )
 
     // Get storage usage (rough estimate based on recording count)
-    const storageResult = await db.query("SELECT COUNT(*) * 2 as storage_mb FROM recordings WHERE user_id = $1", [
+    const storageResult = await query("SELECT COUNT(*) * 2 as storage_mb FROM recordings WHERE user_id = $1", [
       userId,
     ])
 
@@ -166,14 +166,11 @@ export async function upgradeSubscription(
   amountPaid: string,
 ): Promise<boolean> {
   try {
-    // Create subscription record
-    await db.createSubscription(userId, tier, transactionHash, amountPaid)
-
     // Update user subscription tier
     const expiry = new Date()
     expiry.setMonth(expiry.getMonth() + 1) // 1 month subscription
 
-    await db.query("UPDATE users SET subscription_tier = $1, subscription_expiry = $2 WHERE id = $3", [
+    await query("UPDATE users SET subscription_tier = $1, subscription_expiry = $2 WHERE id = $3", [
       tier,
       expiry,
       userId,
@@ -193,7 +190,7 @@ export async function upgradeSubscription(
 export async function cancelSubscription(userId: string): Promise<boolean> {
   try {
     // Mark current subscription as cancelled
-    await db.query("UPDATE subscriptions SET status = 'cancelled' WHERE user_id = $1 AND status = 'active'", [userId])
+    await query("UPDATE subscriptions SET status = 'cancelled' WHERE user_id = $1 AND status = 'active'", [userId])
 
     // Don't immediately downgrade - let it expire naturally
     console.log("[v0] Subscription cancelled successfully", { userId })
