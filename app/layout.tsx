@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MiniKitContextProvider } from "@/providers/MiniKitProvider"
 import { ConditionalBottomNav } from "@/components/conditional-bottom-nav"
+import { FarcasterSplashManager } from "@/components/farcaster-splash-manager"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -44,6 +45,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <AuthProvider>
+                <FarcasterSplashManager />
                 {children}
                 <ConditionalBottomNav />
               </AuthProvider>
