@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, X, Crown, Check } from "lucide-react"
-import { usePaymentContract } from "@/hooks/usePaymentContract"
+import { useEnhancedPaymentContract } from "@/hooks/useEnhancedPaymentContract"
 import { useAuth } from "@/contexts/auth-context"
 
 interface PaymentModalProps {
@@ -23,8 +23,10 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
     proPrice, 
     subscriptionInfo,
     isLoading: contractLoading,
-    error 
-  } = usePaymentContract()
+    error,
+    transactionState,
+    verificationStatus
+  } = useEnhancedPaymentContract(user?.id)
 
   if (!isOpen) return null
 
@@ -44,7 +46,7 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
     }
   }
 
-  const isLoading = contractLoading || isProcessing
+  const isLoading = contractLoading || isProcessing || transactionState === 'pending' || transactionState === 'confirming' || verificationStatus === 'pending'
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
@@ -124,7 +126,7 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
           {/* Error Display */}
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-              <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-300">{error.userMessage}</p>
             </div>
           )}
 
