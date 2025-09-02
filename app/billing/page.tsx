@@ -373,7 +373,7 @@ export default function BillingPage() {
                       </div>
                     ) : (
                       <div>
-                        <div className="text-3xl font-bold text-card-foreground">$9.99</div>
+                        <div className="text-3xl font-bold text-card-foreground">$1.99</div>
                         <div className="text-sm text-muted-foreground">Loading pricing...</div>
                       </div>
                     )}
