@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       ORDER BY u.created_at DESC
     `)
 
-    const users = usersResult.rows.map(user => ({
+    const users = usersResult.rows.map((user: { id: any; wallet_address: any; name: any; email: any; subscription_tier: any; subscription_expiry: any; is_admin: any; created_at: any; recording_count: string }) => ({
       id: user.id,
       walletAddress: user.wallet_address,
       name: user.name,

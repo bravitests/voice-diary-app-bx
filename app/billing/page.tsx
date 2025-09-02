@@ -41,7 +41,7 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null)
   const [usage, setUsage] = useState<UsageStats | null>(null)
   const [isUpgrading, setIsUpgrading] = useState(false)
-  const [pricing, setPricing] = useState(null)
+  const [pricing, setPricing] = useState<any>(null)
   const [dataError, setDataError] = useState<string | null>(null)
 
   const {
