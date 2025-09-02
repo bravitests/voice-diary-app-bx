@@ -1,6 +1,5 @@
 // Complete Billing Service Integration
 
-import { query } from "@/lib/database"
 import { BillingError, BillingErrorType, createBillingError, parseBillingError } from "./billing-errors"
 
 export interface TransactionStatus {
@@ -185,7 +184,7 @@ export class BillingService {
   }
 
   /**
-   * Update database subscription to match contract state
+   * Update database subscription via API call
    */
   private static async updateDatabaseSubscription(
     userId: string, 
@@ -194,22 +193,19 @@ export class BillingService {
     amountPaid: string
   ): Promise<boolean> {
     try {
-      // Update user subscription tier and expiry
-      await query(
-        `UPDATE users 
-         SET subscription_tier = 'pro', subscription_expiry = $1, updated_at = NOW() 
-         WHERE id = $2`,
-        [expiryDate, userId]
-      )
+      const response = await fetch('/api/subscription/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          tier: 'pro',
+          transactionHash,
+          amountPaid,
+          expiryDate: expiryDate.toISOString()
+        })
+      })
 
-      // Insert subscription record
-      await query(
-        `INSERT INTO subscriptions (user_id, tier, status, end_date, transaction_hash, amount_paid)
-         VALUES ($1, 'pro', 'active', $2, $3, $4)`,
-        [userId, expiryDate, transactionHash, amountPaid]
-      )
-
-      return true
+      return response.ok
     } catch (error) {
       console.error('Database update error:', error)
       return false
@@ -229,24 +225,26 @@ export class BillingService {
       // Get contract status
       const contractStatus = await this.getContractSubscriptionStatus(walletAddress)
       
-      // Get database status
-      const dbResult = await query(
-        `SELECT subscription_tier, subscription_expiry FROM users WHERE id = $1`,
-        [userId]
-      )
+      // Get database status via API
+      const response = await fetch(`/api/subscription/status?userId=${userId}`)
+      if (!response.ok) {
+        return {
+          inSync: false,
+          contractStatus,
+          databaseStatus: null,
+          recommendedAction: 'Failed to fetch database status'
+        }
+      }
       
-      if (dbResult.rows.length === 0) {
+      const { database: databaseStatus } = await response.json()
+      
+      if (!databaseStatus) {
         return {
           inSync: false,
           contractStatus,
           databaseStatus: null,
           recommendedAction: 'User not found in database'
         }
-      }
-
-      const databaseStatus = {
-        tier: dbResult.rows[0].subscription_tier,
-        expiry: dbResult.rows[0].subscription_expiry
       }
 
       // Check if they match
@@ -279,38 +277,20 @@ export class BillingService {
    */
   static async getUserLimits(userId: string) {
     try {
-      const result = await query(
-        `SELECT subscription_tier, subscription_expiry FROM users WHERE id = $1`,
-        [userId]
-      )
+      const response = await fetch(`/api/subscription/status?userId=${userId}`)
+      if (!response.ok) {
+        throw createBillingError(BillingErrorType.DATABASE_ERROR, 'Failed to fetch user data')
+      }
 
-      if (result.rows.length === 0) {
+      const { database } = await response.json()
+      if (!database) {
         throw createBillingError(BillingErrorType.DATABASE_ERROR, 'User not found')
       }
 
-      const { subscription_tier, subscription_expiry } = result.rows[0]
-      const isExpired = subscription_expiry && new Date(subscription_expiry) < new Date()
-      const effectiveTier = isExpired ? 'free' : subscription_tier
-
-      const limits = {
-        free: {
-          maxRecordingDuration: 120, // 2 minutes
-          maxEntriesPerMonth: 50,
-          maxChatMessagesPerMonth: 20,
-          maxStorageGB: 1
-        },
-        pro: {
-          maxRecordingDuration: 300, // 5 minutes
-          maxEntriesPerMonth: -1, // unlimited
-          maxChatMessagesPerMonth: -1, // unlimited
-          maxStorageGB: 10
-        }
-      }
-
       return {
-        tier: effectiveTier,
-        limits: limits[effectiveTier as keyof typeof limits],
-        isExpired
+        tier: database.tier,
+        limits: database.limits,
+        isExpired: database.isExpired
       }
 
     } catch (error) {

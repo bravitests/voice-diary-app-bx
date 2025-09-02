@@ -5,7 +5,7 @@ import { query } from "@/lib/database"
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, tier, transactionHash, amountPaid, walletAddress } = await request.json()
+    const { userId, tier, transactionHash, amountPaid, walletAddress, expiryDate } = await request.json()
 
     // Validate required fields
     if (!userId || !tier || !transactionHash) {
@@ -50,6 +50,14 @@ export async function POST(request: NextRequest) {
 
     // Legacy upgrade call for backward compatibility
     const legacySuccess = await upgradeSubscription(userId, tier, transactionHash, amountPaid || "0")
+    
+    // If expiryDate is provided, update it directly
+    if (expiryDate) {
+      await query(
+        `UPDATE users SET subscription_expiry = $1 WHERE id = $2`,
+        [new Date(expiryDate), userId]
+      )
+    }
 
     return NextResponse.json({ 
       success: true, 
