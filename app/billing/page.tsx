@@ -19,7 +19,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react"
-import { useImprovedPaymentContract } from "@/hooks/useImprovedPaymentContract"
+import { useEnhancedPaymentContract } from "@/hooks/useEnhancedPaymentContract"
 import { BillingErrorDisplay } from "@/components/billing-error-display"
 
 interface SubscriptionStatus {
@@ -51,9 +51,9 @@ export default function BillingPage() {
     error: billingError,
     txHash,
     verificationStatus,
-    ethPrice,
+    proPrice: ethPrice,
     contractAddress
-  } = useImprovedPaymentContract(user?.id)
+  } = useEnhancedPaymentContract(user?.id)
 
   useEffect(() => {
     if (!isLoading && !user) {
