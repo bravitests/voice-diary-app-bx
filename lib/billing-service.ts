@@ -132,7 +132,7 @@ export class BillingService {
           "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
           "name": "hasActiveProSubscription",
           "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-          "stateMutability": "view",
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -141,7 +141,6 @@ export class BillingService {
           "outputs": [
             {"internalType": "uint8", "name": "tier", "type": "uint8"},
             {"internalType": "uint256", "name": "expiryTimestamp", "type": "uint256"},
-            {"internalType": "bool", "name": "isActive", "type": "bool"},
             {"internalType": "bool", "name": "isExpired", "type": "bool"}
           ],
           "stateMutability": "view",
@@ -164,12 +163,20 @@ export class BillingService {
         })
       ])
       
-      const [tier, expiryTimestamp, isActive, isExpired] = subscriptionDetails
+      const [tier, expiryTimestamp, isExpired] = subscriptionDetails
+      
+      // Get the subscription price for PRO tier
+      const proPrice = await client.readContract({
+        address: contractAddress,
+        abi,
+        functionName: 'subscriptionPrices',
+        args: [1] // PRO tier = 1
+      })
       
       return {
         hasActivePro: Boolean(hasActivePro),
         expiryDate: new Date(Number(expiryTimestamp) * 1000),
-        amountPaid: '0.01' // This would need to be tracked separately or from events
+        amountPaid: proPrice ? (Number(proPrice) / 1e18).toString() : '0.01' // Convert from wei to ETH
       }
     } catch (error) {
       console.error('Contract read error:', error)

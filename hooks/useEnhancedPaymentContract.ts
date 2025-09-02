@@ -17,7 +17,7 @@ const PAYMENT_CONTRACT_ABI = [
     "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
     "name": "hasActiveProSubscription",
     "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-    "stateMutability": "view",
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -26,7 +26,6 @@ const PAYMENT_CONTRACT_ABI = [
     "outputs": [
       {"internalType": "uint8", "name": "tier", "type": "uint8"},
       {"internalType": "uint256", "name": "expiryTimestamp", "type": "uint256"},
-      {"internalType": "bool", "name": "isActive", "type": "bool"},
       {"internalType": "bool", "name": "isExpired", "type": "bool"}
     ],
     "stateMutability": "view",
@@ -213,14 +212,15 @@ export function useEnhancedPaymentContract(userId?: string) {
   const getSubscriptionInfo = useCallback(() => {
     if (!subscriptionDetails) return null
 
-    const [tier, expiryTimestamp, isActive, isExpired] = subscriptionDetails
+    const [tier, expiryTimestamp, isExpired] = subscriptionDetails
+    const isActive = tier === 1 && !isExpired && Number(expiryTimestamp) * 1000 > Date.now()
     
     return {
       tier: tier === 1 ? 'pro' : 'free',
       expiryDate: new Date(Number(expiryTimestamp) * 1000),
       isActive,
       isExpired,
-      daysRemaining: isActive && !isExpired 
+      daysRemaining: isActive 
         ? Math.ceil((Number(expiryTimestamp) * 1000 - Date.now()) / (1000 * 60 * 60 * 24))
         : 0
     }
