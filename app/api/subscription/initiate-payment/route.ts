@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     console.log('[PAYMENT INIT] USD Price:', usdPrice)
     
     // Get real ETH price from CoinGecko API with fallback
-    let ethUsdRate = 3000 // Fallback rate
+    let ethUsdRate = 4384.95 // Fallback rate
     try {
       const ethPriceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd')
       if (ethPriceResponse.ok) {

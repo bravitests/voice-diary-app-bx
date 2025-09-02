@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 
 const EXCHANGE_RATES = {
-  ETH_TO_USD: 3500, // 1 ETH = $3500 USD
+  ETH_TO_USD: 4385, // 1 ETH = $3500 USD
   USD_TO_KSH: 130,  // 1 USD = 130 KSH
 }
 
