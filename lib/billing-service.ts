@@ -85,21 +85,26 @@ export class BillingService {
    * Get transaction status from blockchain
    */
   private static async getTransactionStatus(txHash: string): Promise<TransactionStatus> {
-    // This would integrate with your blockchain provider (e.g., Alchemy, Infura)
-    // For now, we'll simulate the check
     try {
-      // In a real implementation, you'd use something like:
-      // const receipt = await provider.getTransactionReceipt(txHash)
+      const { createPublicClient, http } = await import('viem')
+      const { base } = await import('viem/chains')
       
-      // Simulated response - replace with actual blockchain call
+      const client = createPublicClient({
+        chain: base,
+        transport: http()
+      })
+      
+      const receipt = await client.getTransactionReceipt({ hash: txHash as `0x${string}` })
+      
       return {
         hash: txHash,
-        status: 'confirmed', // This should come from actual blockchain
-        blockNumber: 12345678,
-        gasUsed: '21000',
-        effectiveGasPrice: '20000000000'
+        status: receipt.status === 'success' ? 'confirmed' : 'failed',
+        blockNumber: Number(receipt.blockNumber),
+        gasUsed: receipt.gasUsed.toString(),
+        effectiveGasPrice: receipt.effectiveGasPrice?.toString()
       }
     } catch (error) {
+      console.error('Blockchain verification error:', error)
       throw createBillingError(BillingErrorType.NETWORK_ERROR, 'Failed to verify transaction')
     }
   }
@@ -108,19 +113,66 @@ export class BillingService {
    * Get subscription status from smart contract
    */
   private static async getContractSubscriptionStatus(walletAddress: string) {
-    // This would call your smart contract directly
-    // For now, we'll simulate the response
     try {
-      // In a real implementation, you'd use wagmi/viem to call:
-      // const result = await readContract({ ... })
+      const { createPublicClient, http } = await import('viem')
+      const { base } = await import('viem/chains')
       
-      // Simulated response - replace with actual contract call
+      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`
+      if (!contractAddress) {
+        throw createBillingError(BillingErrorType.CONTRACT_ERROR, 'Contract address not configured')
+      }
+      
+      const client = createPublicClient({
+        chain: base,
+        transport: http()
+      })
+      
+      const abi = [
+        {
+          "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+          "name": "hasActiveProSubscription",
+          "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+          "name": "getUserSubscription",
+          "outputs": [
+            {"internalType": "uint8", "name": "tier", "type": "uint8"},
+            {"internalType": "uint256", "name": "expiryTimestamp", "type": "uint256"},
+            {"internalType": "bool", "name": "isActive", "type": "bool"},
+            {"internalType": "bool", "name": "isExpired", "type": "bool"}
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ] as const
+      
+      const [hasActivePro, subscriptionDetails] = await Promise.all([
+        client.readContract({
+          address: contractAddress,
+          abi,
+          functionName: 'hasActiveProSubscription',
+          args: [walletAddress as `0x${string}`]
+        }),
+        client.readContract({
+          address: contractAddress,
+          abi,
+          functionName: 'getUserSubscription',
+          args: [walletAddress as `0x${string}`]
+        })
+      ])
+      
+      const [tier, expiryTimestamp, isActive, isExpired] = subscriptionDetails
+      
       return {
-        hasActivePro: true,
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        amountPaid: '0.01' // ETH
+        hasActivePro: Boolean(hasActivePro),
+        expiryDate: new Date(Number(expiryTimestamp) * 1000),
+        amountPaid: '0.01' // This would need to be tracked separately or from events
       }
     } catch (error) {
+      console.error('Contract read error:', error)
       throw createBillingError(BillingErrorType.CONTRACT_ERROR, 'Failed to read contract state')
     }
   }
