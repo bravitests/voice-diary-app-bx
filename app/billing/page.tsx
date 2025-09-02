@@ -235,22 +235,7 @@ export default function BillingPage() {
             </Card>
           )}
 
-          {/* Debug Info */}
-          <Card className="border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/20">
-            <CardContent className="p-4">
-              <div className="text-xs space-y-1">
-                <p><strong>Debug Info:</strong></p>
-                <p>Contract: {contractAddress || 'Not configured'}</p>
-                <p>Pro Price: {proPrice || 'Loading...'} ETH</p>
-                <p>Has Active Pro: {hasActivePro ? 'Yes' : 'No'}</p>
-                <p>User Connected: {user ? 'Yes' : 'No'}</p>
-                <p>Contract Loading: {contractLoading ? 'Yes' : 'No'}</p>
-                <p>Is Upgrading: {isUpgrading ? 'Yes' : 'No'}</p>
-                <p>Wallet Address: {debugInfo?.address || 'None'}</p>
-                <p>Wallet Connected: {debugInfo?.isConnected ? 'Yes' : 'No'}</p>
-              </div>
-            </CardContent>
-          </Card>
+
 
           {/* Current Plan */}
           <Card className="border-border bg-card">
@@ -382,13 +367,13 @@ export default function BillingPage() {
                           ${pricing.monthly.usd}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          KSh {pricing.monthly.ksh.toLocaleString()} • {pricing.monthly.eth} ETH
+                          {pricing.monthly.eth.toFixed(4)} ETH
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">per month</div>
                       </div>
                     ) : (
                       <div>
-                        <div className="text-3xl font-bold text-card-foreground">...</div>
+                        <div className="text-3xl font-bold text-card-foreground">$9.99</div>
                         <div className="text-sm text-muted-foreground">Loading pricing...</div>
                       </div>
                     )}
@@ -429,7 +414,7 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || contractLoading || !contractAddress || !pricing || !user || transactionState !== TransactionState.IDLE}
+                      disabled={isUpgrading || contractLoading || !contractAddress || !user || transactionState !== TransactionState.IDLE}
                     >
                       {(isUpgrading || contractLoading || transactionState !== TransactionState.IDLE) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       {transactionState === TransactionState.PREPARING ? "Preparing Transaction..." :
@@ -465,20 +450,10 @@ export default function BillingPage() {
                       </div>
                     )}
                     
-                    {pricing && (
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">
-                          Yearly: ${pricing.yearly.usd} (KSh {pricing.yearly.ksh.toLocaleString()}) - Save 2 months!
-                        </p>
-                      </div>
-                    )}
+
                   </div>
 
-                  {!contractAddress && (
-                    <p className="text-xs text-muted-foreground text-center">
-                      Smart contract not configured
-                    </p>
-                  )}
+
                 </CardContent>
               </Card>
             </div>
