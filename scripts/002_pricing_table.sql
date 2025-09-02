@@ -7,7 +7,10 @@ CREATE TABLE IF NOT EXISTS pricing (
 );
 
 -- Insert default pricing
-INSERT INTO pricing (id, monthly_usd) VALUES (1, 35.00) ON CONFLICT (id) DO NOTHING;
+INSERT INTO pricing (id, monthly_usd) VALUES (1, 0.99) ON CONFLICT (id) DO NOTHING;
+
+-- Update existing pricing to correct amount
+UPDATE pricing SET monthly_usd = 0.99 WHERE id = 1;
 
 -- Update trigger for pricing table
 CREATE TRIGGER update_pricing_updated_at BEFORE UPDATE ON pricing

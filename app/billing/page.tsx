@@ -19,7 +19,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react"
-import { useEnhancedPaymentContract, TransactionState } from "@/hooks/useEnhancedPaymentContract"
+import { useImprovedPaymentContract } from "@/hooks/useImprovedPaymentContract"
 import { BillingErrorDisplay } from "@/components/billing-error-display"
 
 interface SubscriptionStatus {
@@ -46,19 +46,14 @@ export default function BillingPage() {
 
   const {
     purchaseProSubscription,
-    hasActivePro,
-    subscriptionInfo,
-    proPrice,
     isLoading: contractLoading,
+    isSuccess,
     error: billingError,
-    contractAddress,
     txHash,
-    transactionState,
-    syncStatus,
-    retryTransaction,
-    clearError,
-    debugInfo
-  } = useEnhancedPaymentContract(user?.id)
+    verificationStatus,
+    ethPrice,
+    contractAddress
+  } = useImprovedPaymentContract(user?.id)
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -71,7 +66,7 @@ export default function BillingPage() {
       fetchSubscriptionData()
       fetchPricing()
     }
-  }, [user, hasActivePro, subscriptionInfo])
+  }, [user, isSuccess])
 
   const fetchPricing = async () => {
     try {
@@ -88,13 +83,20 @@ export default function BillingPage() {
 
     try {
       setDataError(null)
-      // Use contract data for subscription status
-      const isActive = hasActivePro
+      
+      // Fetch subscription status from API
+      const response = await fetch(`/api/subscription/status?userId=${user.id}`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch subscription data: ${response.status}`)
+      }
+      const { database } = await response.json()
+      
+      const isActive = database.tier === 'pro' && new Date(database.expiry) > new Date()
 
       setSubscription({
-        tier: isActive ? "pro" : "free",
-        expiry: subscriptionInfo?.expiryDate?.toISOString() || null,
-        isExpired: subscriptionInfo?.isExpired || false,
+        tier: database.tier,
+        expiry: database.expiry,
+        isExpired: database.isExpired,
         limits: {
           maxRecordingDuration: isActive ? 300 : 120,
           maxEntriesPerMonth: isActive ? -1 : 50,
@@ -137,16 +139,15 @@ export default function BillingPage() {
     }
   }
 
-  // Handle transaction state changes
+  // Handle verification status changes
   useEffect(() => {
-    if (transactionState === TransactionState.SUCCESS && syncStatus === 'synced') {
+    if (verificationStatus === 'confirmed') {
       setIsUpgrading(false)
-      // Refresh data
       fetchSubscriptionData()
-    } else if (transactionState === TransactionState.FAILED) {
+    } else if (verificationStatus === 'failed') {
       setIsUpgrading(false)
     }
-  }, [transactionState, syncStatus])
+  }, [verificationStatus])
 
   const handleCancel = async () => {
     if (!confirm(
@@ -207,27 +208,29 @@ export default function BillingPage() {
 
           {/* Billing Error Display */}
           {billingError && (
-            <BillingErrorDisplay
-              error={billingError}
-              onRetry={billingError.retryable ? retryTransaction : undefined}
-              onDismiss={clearError}
-            />
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                  <AlertCircle className="w-4 h-4" />
+                  <p className="text-sm">{billingError}</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Transaction Status */}
-          {(transactionState !== TransactionState.IDLE || syncStatus !== 'idle') && (
+          {/* Payment Status */}
+          {verificationStatus !== 'idle' && (
             <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
               <CardContent className="p-4">
                 <div className="text-xs space-y-2">
-                  <p><strong>Transaction Status:</strong></p>
+                  <p><strong>Payment Status:</strong></p>
                   <div className="space-y-1">
-                    <p>State: {transactionState}</p>
-                    <p>Sync: {syncStatus}</p>
+                    <p>Status: {verificationStatus}</p>
                     {txHash && (
                       <p>TX: <a href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{txHash.slice(0, 10)}...</a></p>
                     )}
-                    {transactionState === TransactionState.SUCCESS && syncStatus === 'synced' && (
-                      <p className="text-green-600 font-medium">✓ Upgrade Complete!</p>
+                    {verificationStatus === 'confirmed' && (
+                      <p className="text-green-600 font-medium">✓ Payment Confirmed!</p>
                     )}
                   </div>
                 </div>
@@ -414,15 +417,12 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || contractLoading || !contractAddress || !user || transactionState !== TransactionState.IDLE}
+                      disabled={isUpgrading || contractLoading || !contractAddress || !user || verificationStatus === 'pending'}
                     >
-                      {(isUpgrading || contractLoading || transactionState !== TransactionState.IDLE) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      {transactionState === TransactionState.PREPARING ? "Preparing Transaction..." :
-                       transactionState === TransactionState.PENDING ? "Confirm in Wallet..." :
-                       transactionState === TransactionState.CONFIRMING ? "Confirming Transaction..." :
-                       syncStatus === 'syncing' ? "Syncing Account..." :
-                       isUpgrading ? "Processing..." : 
-                       `Upgrade to Pro Monthly`}
+                      {(isUpgrading || contractLoading || verificationStatus === 'pending') && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {verificationStatus === 'pending' ? "Verifying Payment..." :
+                       isUpgrading ? "Processing Payment..." : 
+                       `Upgrade to Pro - ${ethPrice ? ethPrice + ' ETH' : 'Loading...'}`}
                     </Button>
                     
                     {txHash && (
@@ -438,14 +438,14 @@ export default function BillingPage() {
                             {txHash.slice(0, 10)}...{txHash.slice(-8)}
                           </a>
                         </p>
-                        {transactionState === TransactionState.CONFIRMING && (
-                          <p className="text-xs text-amber-600">⏳ Waiting for blockchain confirmation...</p>
+                        {verificationStatus === 'pending' && (
+                          <p className="text-xs text-amber-600">⏳ Verifying payment on blockchain...</p>
                         )}
-                        {syncStatus === 'syncing' && (
-                          <p className="text-xs text-blue-600">🔄 Syncing your account...</p>
+                        {verificationStatus === 'confirmed' && (
+                          <p className="text-xs text-green-600">✅ Payment confirmed!</p>
                         )}
-                        {transactionState === TransactionState.SUCCESS && syncStatus === 'synced' && (
-                          <p className="text-xs text-green-600">✅ Upgrade successful!</p>
+                        {verificationStatus === 'failed' && (
+                          <p className="text-xs text-red-600">❌ Payment verification failed</p>
                         )}
                       </div>
                     )}
