@@ -19,7 +19,8 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react"
-import { usePaymentContract } from "@/hooks/usePaymentContract"
+import { useEnhancedPaymentContract, TransactionState } from "@/hooks/useEnhancedPaymentContract"
+import { BillingErrorDisplay } from "@/components/billing-error-display"
 
 interface SubscriptionStatus {
   tier: "free" | "pro"
@@ -49,13 +50,15 @@ export default function BillingPage() {
     subscriptionInfo,
     proPrice,
     isLoading: contractLoading,
-    error: contractError,
+    error: billingError,
     contractAddress,
     txHash,
-    isConfirming,
-    isConfirmed,
+    transactionState,
+    syncStatus,
+    retryTransaction,
+    clearError,
     debugInfo
-  } = usePaymentContract()
+  } = useEnhancedPaymentContract(user?.id)
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -118,49 +121,32 @@ export default function BillingPage() {
     console.log('User:', user)
     console.log('Contract Address:', contractAddress)
     console.log('Pro Price:', proPrice)
-    console.log('Contract Loading:', contractLoading)
     
-    if (!user) {
-      alert("Please connect your wallet first.")
-      return
-    }
-    
-    if (!contractAddress) {
-      alert("Smart contract not configured. Please check environment variables.")
-      return
-    }
-
-    if (!proPrice) {
-      alert("Price not loaded. Please refresh and try again.")
-      return
-    }
-
-    console.log('Starting upgrade process...')
     setIsUpgrading(true)
     
     try {
-      const success = await purchaseProSubscription()
-      console.log('Purchase result:', success)
+      const result = await purchaseProSubscription()
+      console.log('Purchase result:', result)
       
-      if (!success) {
+      if (!result.success) {
         setIsUpgrading(false)
       }
     } catch (error) {
       console.error("Upgrade failed:", error)
-      alert(`Upgrade failed: ${error}`)
       setIsUpgrading(false)
     }
   }
 
-  // Handle transaction confirmation
+  // Handle transaction state changes
   useEffect(() => {
-    if (isConfirmed) {
-      alert("Upgrade successful! Welcome to Pro!")
+    if (transactionState === TransactionState.SUCCESS && syncStatus === 'synced') {
       setIsUpgrading(false)
       // Refresh data
       fetchSubscriptionData()
+    } else if (transactionState === TransactionState.FAILED) {
+      setIsUpgrading(false)
     }
-  }, [isConfirmed])
+  }, [transactionState, syncStatus])
 
   const handleCancel = async () => {
     if (!confirm(
@@ -219,15 +205,30 @@ export default function BillingPage() {
             </Card>
           )}
 
-          {/* Contract Error */}
-          {contractError && (
-            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+          {/* Billing Error Display */}
+          {billingError && (
+            <BillingErrorDisplay
+              error={billingError}
+              onRetry={billingError.retryable ? retryTransaction : undefined}
+              onDismiss={clearError}
+            />
+          )}
+
+          {/* Transaction Status */}
+          {(transactionState !== TransactionState.IDLE || syncStatus !== 'idle') && (
+            <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
-                  <AlertCircle className="w-4 h-4" />
-                  <div>
-                    <p className="text-sm font-medium">Transaction Error</p>
-                    <p className="text-xs">{contractError}</p>
+                <div className="text-xs space-y-2">
+                  <p><strong>Transaction Status:</strong></p>
+                  <div className="space-y-1">
+                    <p>State: {transactionState}</p>
+                    <p>Sync: {syncStatus}</p>
+                    {txHash && (
+                      <p>TX: <a href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{txHash.slice(0, 10)}...</a></p>
+                    )}
+                    {transactionState === TransactionState.SUCCESS && syncStatus === 'synced' && (
+                      <p className="text-green-600 font-medium">✓ Upgrade Complete!</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -235,7 +236,7 @@ export default function BillingPage() {
           )}
 
           {/* Debug Info */}
-          <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+          <Card className="border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/20">
             <CardContent className="p-4">
               <div className="text-xs space-y-1">
                 <p><strong>Debug Info:</strong></p>
@@ -247,10 +248,6 @@ export default function BillingPage() {
                 <p>Is Upgrading: {isUpgrading ? 'Yes' : 'No'}</p>
                 <p>Wallet Address: {debugInfo?.address || 'None'}</p>
                 <p>Wallet Connected: {debugInfo?.isConnected ? 'Yes' : 'No'}</p>
-                <p>Write Error: {debugInfo?.writeError || 'None'}</p>
-                <p>Is Pending: {debugInfo?.isPending ? 'Yes' : 'No'}</p>
-                {txHash && <p>TX Hash: {txHash}</p>}
-                {contractError && <p>Error: {contractError}</p>}
               </div>
             </CardContent>
           </Card>
@@ -432,21 +429,38 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || contractLoading || !contractAddress || !pricing || !user}
+                      disabled={isUpgrading || contractLoading || !contractAddress || !pricing || !user || transactionState !== TransactionState.IDLE}
                     >
-                      {(isUpgrading || contractLoading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      {isConfirming ? "Confirming Transaction..." : 
+                      {(isUpgrading || contractLoading || transactionState !== TransactionState.IDLE) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {transactionState === TransactionState.PREPARING ? "Preparing Transaction..." :
+                       transactionState === TransactionState.PENDING ? "Confirm in Wallet..." :
+                       transactionState === TransactionState.CONFIRMING ? "Confirming Transaction..." :
+                       syncStatus === 'syncing' ? "Syncing Account..." :
                        isUpgrading ? "Processing..." : 
                        `Upgrade to Pro Monthly`}
                     </Button>
                     
                     {txHash && (
-                      <div className="text-center">
+                      <div className="text-center space-y-1">
                         <p className="text-xs text-muted-foreground">
-                          Transaction: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                          Transaction: 
+                          <a 
+                            href={`https://basescan.org/tx/${txHash}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-blue-600 hover:underline ml-1"
+                          >
+                            {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                          </a>
                         </p>
-                        {isConfirming && (
-                          <p className="text-xs text-amber-600">Waiting for confirmation...</p>
+                        {transactionState === TransactionState.CONFIRMING && (
+                          <p className="text-xs text-amber-600">⏳ Waiting for blockchain confirmation...</p>
+                        )}
+                        {syncStatus === 'syncing' && (
+                          <p className="text-xs text-blue-600">🔄 Syncing your account...</p>
+                        )}
+                        {transactionState === TransactionState.SUCCESS && syncStatus === 'synced' && (
+                          <p className="text-xs text-green-600">✅ Upgrade successful!</p>
                         )}
                       </div>
                     )}
