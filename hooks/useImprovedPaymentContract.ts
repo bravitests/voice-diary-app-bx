@@ -55,11 +55,16 @@ export function useImprovedPaymentContract(userId?: string) {
         throw new Error('Failed to initiate payment')
       }
 
-      const { paymentId, amountEth } = await response.json()
-      setPaymentId(paymentId)
-      setEthPrice(amountEth)
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Payment initiation failed')
+      }
+      
+      setPaymentId(result.paymentId)
+      setEthPrice(result.amountEth)
 
-      return { success: true, amountEth }
+      return { success: true, amountEth: result.amountEth }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment initiation failed')
       return { success: false }
