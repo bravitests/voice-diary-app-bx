@@ -106,11 +106,11 @@ export default function BillingPage() {
       })
 
       // Fetch usage stats from API
-      const response = await fetch(`/api/usage?userId=${user.id}`)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch usage data: ${response.status} ${response.statusText}`)
+      const usageResponse = await fetch(`/api/usage?userId=${user.id}`)
+      if (!usageResponse.ok) {
+        throw new Error(`Failed to fetch usage data: ${usageResponse.status} ${usageResponse.statusText}`)
       }
-      const usageData = await response.json()
+      const usageData = await usageResponse.json()
       setUsage(usageData)
     } catch (error) {
       console.error("Error fetching subscription data:", error)
@@ -122,7 +122,7 @@ export default function BillingPage() {
     console.log('=== UPGRADE BUTTON CLICKED ===')
     console.log('User:', user)
     console.log('Contract Address:', contractAddress)
-    console.log('Pro Price:', proPrice)
+    console.log('ETH Price:', ethPrice)
     
     setIsUpgrading(true)
     
