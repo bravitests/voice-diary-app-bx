@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mic, Settings, Loader2, Plus } from "lucide-react"
+import Image from "next/image"
 import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
 
@@ -111,8 +112,8 @@ export default function Dashboard() {
       <header className="px-4 py-6 border-b border-border">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Mic className="w-4 h-4 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden">
+              <Image src="/logo.png" alt="VoiceDiary Logo" width={32} height={32} className="w-full h-full object-contain" />
             </div>
             <span className="font-bold text-lg text-foreground">VoiceDiary</span>
           </div>
@@ -172,14 +173,14 @@ export default function Dashboard() {
           <div className="flex-1 flex items-center justify-center py-12">
             <div className="relative">
               <div className="w-32 h-32 rounded-full bg-gradient-to-br from-thistle via-fairy-tale to-carnation-pink p-1 shadow-2xl">
-                <div className="w-full h-full rounded-full bg-background flex items-center justify-center">
+                <div className="w-full h-full rounded-full  flex items-center justify-center">
                   <Button
                     size="lg"
                     onClick={handleStartRecording}
                     disabled={!selectedPurpose || isCheckingLimit || loadingPurposes}
                     className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg border-0"
                   >
-                    {isCheckingLimit ? <Loader2 className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
+                    {isCheckingLimit ? <Loader2 className="w-8 h-8 animate-spin" /> : <Mic className="w-14 h-14 text-black" />}
                   </Button>
                 </div>
               </div>
