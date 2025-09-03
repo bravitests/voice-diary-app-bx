@@ -2,9 +2,9 @@
   "miniapp": {
     "version": "1",
     "name": "Voice Diary",
-    "iconUrl": "https://voice-diary-app-bx.vercel.app/logo.png",
-    "homeUrl": "https://voice-diary-app-bx.vercel.app",
-    "splashImageUrl": "https://voice-diary-app-bx.vercel.app/logo.png",
+    "iconUrl": "https://voicediary.xyz/logo.png",
+    "homeUrl": "https://voicediary.xyz",
+    "splashImageUrl": "https://voicediary.xyz/logo.png",
     "splashBackgroundColor": "#000000",
     "subtitle": "AI-powered voice journaling",
     "description": "Record, transcribe, and analyze your thoughts with AI insights on Base blockchain.",

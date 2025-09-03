@@ -10,6 +10,7 @@ A comprehensive voice journaling application built with Next.js, Base blockchain
 - **Smart Summarization**: AI-generated insights and emotional analysis
 - **Purpose-Based Organization**: Categorize entries by purpose (work, personal, health, etc.)
 - **Chat Interface**: AI-powered conversations about your diary entries
+- **Social Sharing**: Share achievements and entries on Farcaster using Base MiniKit
 
 ### Authentication & Payments
 - **Base Wallet Integration**: Connect wallet for seamless authentication
@@ -21,6 +22,7 @@ A comprehensive voice journaling application built with Next.js, Base blockchain
 - **Rate Limiting**: Distributed rate limiting with circuit breakers
 - **Database Integration**: PostgreSQL with connection pooling
 - **Mobile-First Design**: Responsive UI optimized for mobile devices
+- **Base MiniKit Integration**: Native Farcaster sharing and social features
 
 ## Architecture
 
