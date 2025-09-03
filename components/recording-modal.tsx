@@ -7,7 +7,19 @@ import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
 import { getModalThemeColors } from "@/lib/modal-theme"
 import { useComposeCast } from '@coinbase/onchainkit/minikit'
-import VoiceVisualizer from './voicevisualizer' // Import the new visualizer
+import dynamic from 'next/dynamic'
+
+const VoiceVisualizer = dynamic(() => import('./voicevisualizer'), {
+  ssr: false, // Disable server-side rendering for this component
+  loading: () => (
+    <div 
+      className="absolute inset-0 rounded-full"
+      style={{ 
+        background: 'radial-gradient(circle, rgba(100,100,255,0.1) 0%, rgba(0,0,0,0.9) 100%)'
+      }} 
+    />
+  )
+})
 
 interface RecordingModalProps {
   isOpen: boolean
