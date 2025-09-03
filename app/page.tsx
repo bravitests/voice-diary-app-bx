@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import { color } from '@coinbase/onchainkit/theme';
 
 export default function LandingPage() {
   const { setFrameReady, isFrameReady } = useMiniKit()
@@ -50,61 +51,36 @@ export default function LandingPage() {
       </header>
 
       {/* Main Content - Centered */}
-      <main className="flex-1 flex items-center justify-center px-6 py-8">
-        <div className="max-w-sm mx-auto w-full space-y-10">
+      <main className="flex-1 flex items-center justify-center px-6 py-4">
+        <div className="max-w-sm mx-auto w-full space-y-8">
           
           {/* Hero Section */}
-          <div className="text-center space-y-6">
-            <div className="relative">
-              {/* Main Logo with Glow Effect */}
-              <div className="w-20 h-20 mx-auto relative">
-                <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-lg"></div>
-                <Image 
-                  src="/logo.png" 
-                  alt="VoiceDiary Logo" 
-                  width={80} 
-                  height={80} 
-                  className="relative rounded-3xl shadow-lg" 
-                />
-              </div>
-              
-              {/* Floating Elements */}
-              <div className="absolute -top-2 -right-4">
-                <div className="w-6 h-6 bg-accent/20 rounded-full flex items-center justify-center">
-                  <Sparkles className="w-3 h-3 text-accent" />
-                </div>
-              </div>
+          <div className="text-center space-y-8">
+            {/* Hero Image */}
+            <div className="relative mx-auto">
+              <Image 
+                src="/hero.png" 
+                alt="VoiceDiary Hero" 
+                width={280} 
+                height={320} 
+                className="mx-auto" 
+                priority
+              />
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-3xl font-bold text-foreground leading-tight">
+              <h1 className="text-4xl font-bold text-foreground leading-tight">
                 Your Voice,<br />
                 <span className="text-primary">Your Story</span>
               </h1>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-muted-foreground leading-relaxed px-4">
                 Transform thoughts into personal audio diaries with AI-powered insights
               </p>
             </div>
           </div>
 
-          {/* Quick Features */}
-          <div className="flex items-center justify-center gap-8">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                <Mic className="w-6 h-6 text-primary" />
-              </div>
-              <p className="text-sm font-medium text-muted-foreground">Voice Recording</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                <MessageCircle className="w-6 h-6 text-accent" />
-              </div>
-              <p className="text-sm font-medium text-muted-foreground">AI Analysis</p>
-            </div>
-          </div>
-
           {/* CTA Section */}
-          <div className="space-y-6">
+          <div className="space-y-6 pt-4">
             {user ? (
               <div className="space-y-4">
                 <Button
@@ -136,30 +112,28 @@ export default function LandingPage() {
                   <p className="text-sm text-muted-foreground mb-6">
                     Connect your wallet to begin your journey
                   </p>
-                  
+                  <div className="flex justify-center">
                   <Wallet>
-                    <ConnectWallet />
+                    <ConnectWallet className="bg-blue-800">
+                      <Avatar className="h-6 w-6"/>
+                      <Name />
+                      </ConnectWallet>
+
                     <WalletDropdown>
-                      <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[280px]">
-                        <Identity className="px-4 pt-4 pb-3 border-b border-border" hasCopyAddressOnClick>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-10 h-10" />
-                            <div className="flex-1 min-w-0">
-                              <Name className="font-medium text-card-foreground block" />
-                              <Address className="text-sm text-muted-foreground block" />
-                            </div>
-                          </div>
+                      
+                        <Identity className="px-4 pt-3 pb-2 r" hasCopyAddressOnClick>
+                          
+                            <Avatar />
+                            <Name />
+                            <Address className={color.foregroundMuted} />
+                            
                         </Identity>
-                        <div className="p-2">
-                          <WalletDropdownDisconnect>
-                            <div className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer">
-                              Disconnect
-                            </div>
-                          </WalletDropdownDisconnect>
-                        </div>
-                      </div>
+                        
+                          <WalletDropdownDisconnect />
+                        
                     </WalletDropdown>
                   </Wallet>
+                  </div>
                 </div>
                 
                 {/* Trust Indicators */}
@@ -182,14 +156,7 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* Minimal Footer */}
-      <footer className="px-6 py-4 flex-shrink-0">
-        <div className="max-w-sm mx-auto">
-          <p className="text-xs text-center text-muted-foreground/70">
-            Your personal voice diary with AI insights
-          </p>
-        </div>
-      </footer>
+  
     </div>
   )
 }

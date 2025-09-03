@@ -66,7 +66,7 @@ export default function BillingPage() {
       fetchSubscriptionData()
       fetchPricing()
     }
-  }, [user, isSuccess])
+  }, [user])
 
   const fetchPricing = async () => {
     try {
@@ -141,13 +141,24 @@ export default function BillingPage() {
 
   // Handle verification status changes
   useEffect(() => {
-    if (verificationStatus === 'confirmed') {
-      setIsUpgrading(false)
-      fetchSubscriptionData()
-    } else if (verificationStatus === 'failed') {
-      setIsUpgrading(false)
+    if (verificationStatus === 'pending') {
+      // Start polling for subscription status updates
+      const intervalId = setInterval(() => {
+        // We check the subscription state variable directly.
+        // If it's already 'pro', the webhook was fast and we can stop.
+        if (subscription?.tier === 'pro') {
+          clearInterval(intervalId)
+          setIsUpgrading(false)
+          return
+        }
+        // Otherwise, fetch the latest data from the database
+        fetchSubscriptionData()
+      }, 5000) // Poll every 5 seconds
+
+      // Cleanup function to stop polling if the component unmounts
+      return () => clearInterval(intervalId)
     }
-  }, [verificationStatus])
+  }, [verificationStatus, subscription?.tier])
 
   const handleCancel = async () => {
     if (!confirm(

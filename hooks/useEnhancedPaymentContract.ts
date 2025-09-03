@@ -77,11 +77,12 @@ export function useEnhancedPaymentContract(userId?: string) {
   useEffect(() => {
     if (isConfirmed && txHash && userId && address) {
       setTransactionState(TransactionState.SUCCESS)
-      handleTransactionSuccess(txHash, userId, address)
-      startPaymentVerification(txHash, userId)
+      setVerificationStatus('pending') // Give user feedback that verification is happening on the backend
+      notifyBackendOfTransaction(txHash, userId, address)
     } else if (txFailed) {
       setTransactionState(TransactionState.FAILED)
       setBillingError(createBillingError(BillingErrorType.TRANSACTION_FAILED))
+      setVerificationStatus('failed')
     }
   }, [isConfirmed, txFailed, txHash, userId, address])
 
@@ -121,95 +122,19 @@ export function useEnhancedPaymentContract(userId?: string) {
     } : undefined
   )
 
-  const handleTransactionSuccess = async (txHash: string, userId: string, walletAddress: string) => {
-    setSyncStatus('syncing')
-    
+
+
+  const notifyBackendOfTransaction = useCallback(async (transactionHash: string, userId: string, walletAddress: string) => {
     try {
-      const syncResult = await BillingService.verifyAndSyncSubscription(userId, txHash, walletAddress)
-      
-      if (syncResult.success) {
-        setSyncStatus('synced')
-        // Refetch all contract data
-        refetchSubscription()
-        refetchDetails()
-        
-        // Call API to update backend
-        await fetch('/api/subscription/upgrade', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            tier: 'pro',
-            transactionHash: txHash,
-            amountPaid: proPrice ? formatEther(proPrice) : '0'
-          })
-        })
-      } else {
-        setSyncStatus('failed')
-        setBillingError(syncResult.error || createBillingError(BillingErrorType.SUBSCRIPTION_SYNC_ERROR))
-      }
-    } catch (error) {
-      setSyncStatus('failed')
-      setBillingError(parseBillingError(error))
-    }
-  }
-
-  const startPaymentVerification = useCallback(async (transactionHash: string, userId: string) => {
-    setVerificationStatus('pending')
-    
-    // Update payment tracking with transaction hash
-    await fetch('/api/subscription/verify-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userId, 
-        transactionHash,
-        action: 'update_hash'
+      await fetch('/api/transactions/submitted', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, transactionHash, walletAddress })
       })
-    })
-
-    // Poll for verification
-    let attempts = 0
-    const maxAttempts = 4
-    
-    const pollVerification = async () => {
-      if (attempts >= maxAttempts) {
-        setVerificationStatus('failed')
-        setBillingError(createBillingError(BillingErrorType.TRANSACTION_FAILED, 'Payment verification timeout'))
-        return
-      }
-
-      try {
-        const response = await fetch('/api/subscription/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, transactionHash })
-        })
-
-        const result = await response.json()
-        
-        if (result.success && result.status === 'confirmed') {
-          setVerificationStatus('confirmed')
-          return
-        }
-        
-        if (result.status === 'failed') {
-          setVerificationStatus('failed')
-          setBillingError(createBillingError(BillingErrorType.TRANSACTION_FAILED, result.message))
-          return
-        }
-
-        // Continue polling
-        attempts++
-        setTimeout(pollVerification, 5000) // Poll every 5 seconds
-        
-      } catch (err) {
-        attempts++
-        setTimeout(pollVerification, 5000)
-      }
+    } catch (error) {
+      console.error("Failed to notify backend of transaction:", error)
+      // Optional: handle this error, maybe show a message to the user
     }
-
-    pollVerification()
   }, [])
 
   const purchaseProSubscription = useCallback(async () => {
