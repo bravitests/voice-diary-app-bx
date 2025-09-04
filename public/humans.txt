@@ -1,0 +1,13 @@
+# VoiceDiary Team
+
+/* TEAM */
+Developer: Bravian Nyatoro
+Contact: nyatorobravian@gmail.com
+Location: Kenya
+
+/* SITE */
+Last update: 2025
+Language: English
+Standards: HTML5, CSS3, JavaScript ES6+
+Components: Next.js, React, TypeScript
+Software: VS Code, Git

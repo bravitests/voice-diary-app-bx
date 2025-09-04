@@ -1,0 +1,29 @@
+# VoiceDiary - AI-Powered Voice Journaling App
+
+## About
+VoiceDiary is a comprehensive voice journaling application that transforms spoken thoughts into organized diary entries with AI-powered insights and emotional analysis.
+
+## Key Features
+- Voice recording up to 5 minutes (Pro) or 2 minutes (Free)
+- AI transcription 
+- Smart summarization and emotional analysis
+- Purpose-based organization (work, personal, health, etc.)
+- AI chat interface for diary conversations
+- Base blockchain integration for payments
+- Farcaster social sharing via Base MiniKit
+
+## Technology Stack
+- Frontend: Next.js 14, React, TypeScript, Tailwind CSS
+- Backend: PostgreSQL, Gemini AI API
+- Blockchain: Base network, smart contracts
+- Authentication: Base wallet integration
+
+## Pricing
+- Free: 2-minute recordings, 10 entries/month
+- Pro: $0.99/month, 5-minute recordings, unlimited entries
+
+## Target Users
+- Professionals tracking work progress
+- Individuals maintaining personal journals
+- Health-conscious users monitoring wellness
+- Anyone seeking AI-powered self-reflection tools
