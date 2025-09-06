@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Mic, MessageCircle, ArrowRight, Wallet as WalletIcon, Sparkles } from "lucide-react"
+import { ArrowRight, Wallet as WalletIcon } from "lucide-react"
 import { Wallet, ConnectWallet, WalletDropdown, WalletDropdownDisconnect } from "@coinbase/onchainkit/wallet"
 import { Name, Identity, Address, Avatar } from "@coinbase/onchainkit/identity"
 import { useMiniKit } from "@coinbase/onchainkit/minikit"

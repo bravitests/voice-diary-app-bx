@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { useAccount } from "wagmi"
+import { useMiniKit } from "@coinbase/onchainkit/minikit"
 
 interface User {
   id: string
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useAccount()
+  const { context } = useMiniKit()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true) // Start as true to handle initial load
 
@@ -50,10 +52,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createUserFromWallet = useCallback(async (walletAddress: string) => {
     setIsLoading(true);
     try {
+      // Get user info from MiniKit context if available
+      const userInfo = context?.user ? {
+        name: context.user.displayName || context.user.username,
+        email: null // Farcaster doesn't provide email
+      } : {};
+
       const response = await fetch('/api/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress })
+        body: JSON.stringify({ 
+          walletAddress,
+          ...userInfo
+        })
       });
 
       if (response.ok) {

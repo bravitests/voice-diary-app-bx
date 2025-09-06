@@ -3,6 +3,7 @@
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useMiniKit } from "@coinbase/onchainkit/minikit"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,8 +13,6 @@ import { Badge } from "@/components/ui/badge"
 import { ThemeSelector } from "@/components/theme-selector"
 import { PurposeManager } from "@/components/purpose-manager"
 import {
-  BookOpen,
-  MessageCircle,
   User,
   Loader2,
   ArrowLeft,
@@ -27,6 +26,7 @@ import {
 
 export default function ProfilePage() {
   const { user, logout, isLoading } = useAuth()
+  const { context } = useMiniKit()
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -90,8 +90,16 @@ export default function ProfilePage() {
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
+                  {context?.user?.pfpUrl ? (
+                    <img 
+                      src={context.user.pfpUrl} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-6 h-6 text-primary" />
+                  )}
                 </div>
                 <div className="flex-1">
                   <CardTitle className="text-lg text-card-foreground">{user.name || "User"}</CardTitle>
