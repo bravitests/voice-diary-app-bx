@@ -2,21 +2,23 @@
 
 import { MiniKitProvider } from '@coinbase/onchainkit/minikit';
 import { ReactNode } from 'react';
-import { base } from 'viem/chains';
+import { base } from 'wagmi/chains';
 
 export function MiniKitContextProvider({ children }: { children: ReactNode }) {
-  const apiKey = process.env.NEXT_PUBLIC_CDP_CLIENT_API_KEY;
-  
-  if (!apiKey) {
-    console.warn('NEXT_PUBLIC_CDP_CLIENT_API_KEY is not set');
-  }
-  
   return (
     <MiniKitProvider 
-      apiKey={apiKey || ''} 
+       apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
       chain={base}
+      config={{
+        appearance: {
+          mode: 'auto',
+          name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
+          logo: process.env.NEXT_PUBLIC_APP_ICON,
+        },
+      }}
     >
       {children}
     </MiniKitProvider>
   );
 }
+
