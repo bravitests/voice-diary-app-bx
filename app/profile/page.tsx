@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 
 export default function ProfilePage() {
-  const { user, logout, isLoading } = useAuth()
+  const { user, updateProfile, logout, isLoading } = useAuth()
   const { context } = useMiniKit()
   const router = useRouter()
   const [name, setName] = useState("")
@@ -53,10 +53,13 @@ export default function ProfilePage() {
 
   if (!user) return null
 
-  const handleSaveProfile = () => {
-    // In a real app, this would update the user profile
-    console.log("Profile updated:", { name, email })
-    alert("Profile updated successfully!")
+  const handleSaveProfile = async () => {
+    const success = await updateProfile(name, email)
+    if (success) {
+      alert("Profile updated successfully!")
+    } else {
+      alert("Failed to update profile. Please try again.")
+    }
   }
 
   const handleLogout = () => {

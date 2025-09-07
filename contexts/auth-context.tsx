@@ -105,13 +105,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return false;
 
     try {
-      const updatedUser = { ...user, name, email };
-      setUser(updatedUser);
-      // Ensure the updated profile is saved to localStorage
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      console.log("User profile updated and saved to localStorage.");
-      // You should also send this update to your backend API
-      return true;
+      // Call the API to update the database
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          walletAddress: user.walletAddress,
+          name,
+          email
+        })
+      });
+
+      if (response.ok) {
+        const { user: dbUser } = await response.json();
+        setUser(dbUser);
+        localStorage.setItem("user", JSON.stringify(dbUser));
+        console.log("User profile updated successfully:", dbUser.id);
+        return true;
+      } else {
+        console.error("Profile update API call failed");
+        return false;
+      }
     } catch (error) {
       console.error("Profile update failed:", error);
       return false;

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mic, Settings, Loader2, Plus } from "lucide-react"
+import { Mic, Settings, Loader2, Plus, X, User } from "lucide-react"
 import Image from "next/image"
 import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [loadingPurposes, setLoadingPurposes] = useState(true)
   const [showAddPurpose, setShowAddPurpose] = useState(false)
   const [purposeError, setPurposeError] = useState<string | null>(null)
+  const [showNameBanner, setShowNameBanner] = useState(false)
 
   useEffect(() => {
     const storedPurpose = localStorage.getItem("selectedPurpose");
@@ -44,8 +45,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.walletAddress && !isLoading) {
       fetchPurposes()
+      // Show name banner if user has no name
+      setShowNameBanner(!user?.name)
     }
-  }, [user?.walletAddress, isLoading])
+  }, [user?.walletAddress, user?.name, isLoading])
 
   const fetchPurposes = async () => {
     if (!user?.walletAddress) {
@@ -122,6 +125,37 @@ export default function Dashboard() {
           </Button>
         </div>
       </header>
+
+      {/* Name Setup Banner */}
+      {showNameBanner && (
+        <div className="bg-primary/10 border-b border-primary/20 px-4 py-3">
+          <div className="max-w-md mx-auto flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Complete your profile</p>
+              <p className="text-xs text-muted-foreground">Set your name to personalize your experience</p>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => window.location.href = '/profile'}
+              className="text-primary hover:text-primary/80 text-xs px-2 h-7"
+            >
+              Set Name
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowNameBanner(false)}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <main className="px-4 py-6 flex flex-col min-h-[calc(100vh-140px)]">
         <div className="max-w-lg mx-auto space-y-6 flex-1 flex flex-col w-full">
