@@ -1,14 +1,27 @@
 {
-  "miniapp": {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEzMTc5MzIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4MDg4ZTFFYTJiNDc2OENhM2ZFQkIyNEYwZjY1MTUyOGFBMUExQzY3In0",
+    "payload": "eyJkb21haW4iOiJ2b2ljZS1kaWFyeS1hcHAtYngudmVyY2VsLmFwcCJ9",
+    "signature": "MHhlN2ViNjkyYTdjZWM2ZjcwNzkwMzA2ODVmYjAxYzhkMDFmYWQ2MmFjMzE3ODQzZGJmOWYzMGFmMDNlZjJmYWE1NjY5NmUxOTE5YmU1YmY5ZGQ4ZTdkNDFkYTZhN2ViMWM1ZGVhNWViZmMzYmE0NWFjMzVmNGE4Y2Y3ZjYxZmMzMDFj"
+  },
+  "baseBuilder": {
+    "allowedAddresses": ["0x72EC23D3F7976Eb9a34d26E04344Cad0d3585b06"]
+  },
+  "frame": {
     "version": "1",
     "name": "Voice Diary",
-    "iconUrl": "https://voicediary.xyz/logo.png",
     "homeUrl": "https://voicediary.xyz",
+    "iconUrl": "https://voicediary.xyz/logo.png",
     "splashImageUrl": "https://voicediary.xyz/logo.png",
-    "splashBackgroundColor": "#000000",
+    "splashBackgroundColor": "#1a1a1a",
     "subtitle": "AI-powered voice journaling",
-    "description": "Record, transcribe, and analyze your thoughts with AI insights on Base blockchain.",
+    "description": "Record, transcribe, and analyze your thoughts with AI insights on Base blockchain",
     "primaryCategory": "productivity",
-    "tags": ["diary", "voice", "ai", "blockchain", "journaling"]
+    "tags": ["diary", "voice", "ai", "blockchain", "journaling"],
+    "tagline": "Your voice, your story",
+    "heroImageUrl": "https://voicediary.xyz/logo.png",
+    "ogTitle": "Voice Diary",
+    "ogDescription": "Transform thoughts into AI-powered insights",
+    "ogImageUrl": "https://voicediary.xyz/logo.png"
   }
 }

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const entries = await db.getUserRecordings(user.id, purposeId === "all" ? undefined : purposeId);
+    const entries = await db.getUserRecordings(user.id, purposeId === "all" ? undefined : purposeId || undefined);
 
     return NextResponse.json({ entries });
   } catch (error) {

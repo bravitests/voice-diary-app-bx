@@ -12,19 +12,46 @@ import { FarcasterSplashManager } from "@/components/farcaster-splash-manager"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "VoiceDiary - Your Voice, Your Story",
+  title: "Voice Diary",
   description: "Transform your thoughts into a personal audio diary with AI-powered insights",
-  generator: "v0.app",
   icons: {
     icon: '/logo.png',
     shortcut: '/logo.png',
     apple: '/logo.png',
   },
   other: {
-    'fc:frame': 'vNext',
-    'fc:frame:image': 'https://voice-diary-app-bx.vercel.app/logo.png',
+    'fc:miniapp': JSON.stringify({
+      version: "1",
+      imageUrl: "https://voicediary.xyz/logo.png",
+      button: {
+        title: "Start Voice Diary",
+        action: {
+          type: "launch_miniapp",
+          name: "VoiceDiary",
+          url: "https://voicediary.xyz",
+          splashImageUrl: "https://voicediary.xyz/logo.png",
+          splashBackgroundColor: "#000000"
+        }
+      }
+    }),
+    'fc:frame': JSON.stringify({
+      version: "1",
+      imageUrl: "https://voicediary.xyz/logo.png",
+      button: {
+        title: "Start Voice Diary",
+        action: {
+          type: "launch_frame",
+          name: "VoiceDiary",
+          url: "https://voicediary.xyz",
+          splashImageUrl: "https://voicediary.xyz/logo.png",
+          splashBackgroundColor: "#000000"
+        }
+      }
+    }),
     'of:accepts:xmtp': '2024-02-01',
-    'og:image': 'https://voice-diary-app-bx.vercel.app/logo.png',
+    'og:image': 'https://voicediary.xyz/logo.png',
+    'og:title': 'Voice Diary',
+    'og:description': 'Transform your thoughts into a personal audio diary with AI-powered insights'
   },
 }
 

@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Mic, BookOpen, MessageCircle, User, Loader2, Play, Pause, Clock, ArrowLeft, Filter, ChevronDown, ChevronUp, Share2 } from "lucide-react"
-import { useComposeCast } from '@coinbase/onchainkit/minikit';
+import { Mic, BookOpen, Loader2, Play, Pause, ArrowLeft, Filter, ChevronDown, ChevronUp } from "lucide-react"
+import { ShareButton } from '@/components/share-button'
 
 interface Purpose {
   id: string
@@ -48,7 +48,7 @@ export default function EntriesPage() {
   const [loadingPurposes, setLoadingPurposes] = useState(true)
   const [audioStates, setAudioStates] = useState<AudioState>({})
   const [expandedTranscripts, setExpandedTranscripts] = useState<Set<string>>(new Set())
-const { composeCast } = useComposeCast();
+
 
   useEffect(() => {
     const storedFilter = localStorage.getItem("selectedFilter");
@@ -94,13 +94,7 @@ const { composeCast } = useComposeCast();
       setLoadingPurposes(false)
     }
   }
- const handleShare = () => {
-  console.log('clicked')
-    composeCast({
-      text: 'I created an entry to my diary with my voice on Voice Diary on @base! 🥳🥳 ',
-        embeds: ['https://voicediary.xyz']
-    });
-  };
+
   const fetchEntries = async () => {
     if (!user) return
 
@@ -368,15 +362,14 @@ const { composeCast } = useComposeCast();
                       </div>
                       {/* Share Button */}
                       <div className="pt-2 border-t border-border">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={handleShare}
+                        <ShareButton 
+                          entry={{
+                            id: entry.id,
+                            summary: entry.summary,
+                            purpose_name: entry.purpose_name
+                          }}
                           className="w-full text-xs h-8 gap-2 text-muted-foreground hover:text-foreground"
-                        >
-                          <Share2 className="w-3 h-3" />
-                          Share Entry
-                        </Button>
+                        />
                       </div>
                       {/* Audio Player */}
                       <div className="space-y-2 pt-2">

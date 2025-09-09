@@ -5,10 +5,11 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mic, Settings, Loader2, Plus, X, User } from "lucide-react"
+import { Mic, Settings, Loader2, Plus, X, User, Share2 } from "lucide-react"
 import Image from "next/image"
 import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
+import { ShareButton } from "@/components/share-button"
 
 interface Purpose {
   id: string
@@ -120,9 +121,16 @@ export default function Dashboard() {
             </div>
             <span className="font-bold text-lg text-foreground">VoiceDiary</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout}>
-            <Settings className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <ShareButton 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0"
+            />
+            <Button variant="ghost" size="sm" onClick={logout}>
+              <Settings className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
