@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Wallet as WalletIcon } from "lucide-react"
+import { ArrowRight, Wallet as WalletIcon, Plus, Check } from "lucide-react" 
 import { Wallet, ConnectWallet, WalletDropdown, WalletDropdownDisconnect } from "@coinbase/onchainkit/wallet"
 import { Name, Identity, Address, Avatar } from "@coinbase/onchainkit/identity"
-import { useMiniKit } from "@coinbase/onchainkit/minikit"
+import { useMiniKit, useAddFrame } from "@coinbase/onchainkit/minikit" 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
@@ -13,9 +13,13 @@ import Image from "next/image"
 import { color } from '@coinbase/onchainkit/theme';
 
 export default function LandingPage() {
-  const { setFrameReady, isFrameReady } = useMiniKit()
+  const { setFrameReady, isFrameReady, context } = useMiniKit()
   const { user } = useAuth()
   const router = useRouter()
+
+  // New: State and hooks for the "Save Frame" feature
+  const [frameAdded, setFrameAdded] = useState(false)
+  const addFrame = useAddFrame()
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -28,10 +32,44 @@ export default function LandingPage() {
       router.push("/dashboard")
     }
   }
+  
+
+  const handleAddFrame = useCallback(async () => {
+    const frameAdded = await addFrame();
+    setFrameAdded(Boolean(frameAdded));
+  }, [addFrame]);
+
+  const saveFrameButton = useMemo(() => {
+    if (context && !context.client.added) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAddFrame}
+          className="w-full"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Save Frame to Wallet
+        </Button>
+      );
+    }
+
+    if (frameAdded) {
+      return (
+        <div className="flex items-center justify-center space-x-2 text-sm font-medium text-green-600">
+          <Check className="w-5 h-5" />
+          <span>Saved to your Wallet</span>
+        </div>
+      );
+    }
+
+    return null;
+  }, [context, frameAdded, handleAddFrame]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex flex-col">
-      {/* Minimal Header */}
+      {/* Header is unchanged */}
       <header className="px-6 py-4 flex-shrink-0">
         <div className="max-w-sm mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -50,13 +88,11 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Main Content - Centered */}
+      {/* Main Content is unchanged */}
       <main className="flex-1 flex items-center justify-center px-6 py-4">
         <div className="max-w-sm mx-auto w-full space-y-8">
           
-          {/* Hero Section */}
           <div className="text-center space-y-8">
-            {/* Hero Image */}
             <div className="relative mx-auto">
               <Image 
                 src="/hero.png" 
@@ -79,7 +115,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* CTA Section */}
           <div className="space-y-6 pt-4">
             {user ? (
               <div className="space-y-4">
@@ -92,20 +127,13 @@ export default function LandingPage() {
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
                 
-                {/* User Info Card */}
-                <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <WalletIcon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-card-foreground">Connected</p>
-                      <p className="text-xs text-muted-foreground truncate">Ready to start journaling</p>
-                    </div>
-                  </div>
+                
+                <div className="pt-2">
+                  {saveFrameButton}
                 </div>
               </div>
             ) : (
+             
               <div className="space-y-6">
                 <div className="text-center">
                   <h2 className="text-xl font-semibold text-foreground mb-2">Get Started</h2>
@@ -117,26 +145,19 @@ export default function LandingPage() {
                     <ConnectWallet className="bg-blue-800">
                       <Avatar className="h-6 w-6"/>
                       <Name />
-                      </ConnectWallet>
-
+                    </ConnectWallet>
                     <WalletDropdown>
-                      
-                        <Identity className="px-4 pt-3 pb-2 r" hasCopyAddressOnClick>
-                          
-                            <Avatar />
-                            <Name />
-                            <Address className={color.foregroundMuted} />
-                            
-                        </Identity>
-                        
-                          <WalletDropdownDisconnect />
-                        
+                      <Identity className="px-4 pt-3 pb-2 r" hasCopyAddressOnClick>
+                        <Avatar />
+                        <Name />
+                        <Address className={color.foregroundMuted} />
+                      </Identity>
+                      <WalletDropdownDisconnect />
                     </WalletDropdown>
                   </Wallet>
                   </div>
                 </div>
                 
-                {/* Trust Indicators */}
                 <div className="flex items-center justify-center gap-6 pt-2">
                   <div className="text-center">
                     <p className="text-xs font-medium text-muted-foreground">Free</p>
@@ -155,8 +176,6 @@ export default function LandingPage() {
           </div>
         </div>
       </main>
-
-  
     </div>
   )
 }

@@ -104,6 +104,62 @@
   --modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
+.mini-app-theme {
+  /* General Styling */
+  --ock-font-family: var(--font-sans); /* Uses your existing font */
+  --ock-border-radius: var(--radius);
+  --ock-border-radius-inner: var(--radius-md);
+
+  /* Text Colors - Mapped from your theme */
+  --ock-text-inverse: var(--background);
+  --ock-text-foreground: var(--foreground);
+  --ock-text-foreground-muted: var(--muted-foreground);
+  --ock-text-error: var(--destructive);
+  --ock-text-primary: var(--primary);
+  --ock-text-success: #22c55e; /* You can define a --success color or keep this */
+  --ock-text-warning: #f59e0b; /* You can define a --warning color or keep this */
+  --ock-text-disabled: var(--muted-foreground);
+
+  /* Background Colors - Mapped from your theme */
+  --ock-bg-default: var(--background);
+  --ock-bg-default-hover: var(--muted);
+  --ock-bg-default-active: var(--border);
+  --ock-bg-alternate: var(--muted);
+  --ock-bg-alternate-hover: var(--border);
+  --ock-bg-alternate-active: var(--border);
+  --ock-bg-inverse: var(--foreground);
+  --ock-bg-inverse-hover: color-mix(in srgb, var(--foreground), white 10%);
+  --ock-bg-inverse-active: color-mix(in srgb, var(--foreground), white 20%);
+  --ock-bg-primary: var(--primary);
+  --ock-bg-primary-hover: color-mix(in srgb, var(--primary), black 10%);
+  --ock-bg-primary-active: color-mix(in srgb, var(--primary), black 20%);
+  --ock-bg-primary-washed: var(--muted);
+  --ock-bg-primary-disabled: var(--muted);
+  --ock-bg-secondary: var(--secondary);
+  --ock-bg-secondary-hover: color-mix(in srgb, var(--secondary), black 10%);
+  --ock-bg-secondary-active: color-mix(in srgb, var(--secondary), black 20%);
+  --ock-bg-error: color-mix(in srgb, var(--destructive), white 85%);
+  --ock-bg-warning: #fef3c7;
+  --ock-bg-success: #dcfce7;
+  --ock-bg-default-reverse: var(--foreground);
+
+  /* Icon Colors - Mapped from your theme */
+  --ock-icon-color-primary: var(--primary);
+  --ock-icon-color-foreground: var(--foreground);
+  --ock-icon-color-foreground-muted: var(--muted-foreground);
+  --ock-icon-color-inverse: var(--background);
+  --ock-icon-color-error: var(--destructive);
+  --ock-icon-color-success: #22c55e;
+  --ock-icon-color-warning: #f59e0b;
+
+  /* Line Colors - Mapped from your theme */
+  --ock-line-primary: var(--primary);
+  --ock-line-default: var(--border);
+  --ock-line-heavy: var(--muted-foreground);
+  --ock-line-inverse: var(--border);
+}```
+
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
