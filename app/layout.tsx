@@ -4,7 +4,7 @@ import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "next-themes"
 import { MiniKitContextProvider } from "@/providers/MiniKitProvider"
 import { ConditionalBottomNav } from "@/components/conditional-bottom-nav"
 import { FarcasterSplashManager } from "@/components/farcaster-splash-manager"
@@ -93,16 +93,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="antialiased">
+    <html lang="en" className="antialiased" suppressHydrationWarning>
       <body className={inter.className}>
         <Suspense fallback={null}>
           <MiniKitContextProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
               <AuthProvider>
                 <FarcasterSplashManager />
                 {children}

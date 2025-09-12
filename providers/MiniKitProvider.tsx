@@ -11,7 +11,7 @@ export function MiniKitContextProvider({ children }: { children: ReactNode }) {
       chain={base}
       config={{
         appearance: {
-          theme: "mini-app-theme",
+          mode: 'auto',
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
           logo: process.env.NEXT_PUBLIC_APP_ICON,
         },

@@ -21,16 +21,14 @@ export function ThemeToggle() {
     )
   }
 
-  const isDark = theme === "dark"
-
   return (
     <Button
       variant="ghost"
       size="sm"
       className="h-8 w-8 p-0"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
-      {isDark ? (
+      {theme === "dark" ? (
         <Sun className="h-4 w-4" />
       ) : (
         <Moon className="h-4 w-4" />
