@@ -6,17 +6,17 @@ import { X, Mic, Pause, Play } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
 import { getModalThemeColors } from "@/lib/modal-theme"
-import { useComposeCast } from '@coinbase/onchainkit/minikit'
+
 import dynamic from 'next/dynamic'
 
 const VoiceVisualizer = dynamic(() => import('./voicevisualizer'), {
   ssr: false, // Disable server-side rendering for this component
   loading: () => (
-    <div 
+    <div
       className="absolute inset-0 rounded-full"
-      style={{ 
+      style={{
         background: 'radial-gradient(circle, rgba(100,100,255,0.1) 0%, rgba(0,0,0,0.9) 100%)'
-      }} 
+      }}
     />
   )
 })
@@ -31,9 +31,8 @@ interface RecordingModalProps {
 export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: RecordingModalProps) {
   const { user } = useAuth()
   const { resolvedTheme } = useTheme()
-  const { composeCast } = useComposeCast()
   const colors = getModalThemeColors(resolvedTheme || 'light')
-  
+
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -44,7 +43,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
   const isSavingRef = useRef(isSaving)
   isSavingRef.current = isSaving
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -73,10 +72,10 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
   const initializeAudio = async () => {
     if (isInitialized) return
-    
+
     setMicError(null)
     setIsInitialized(false)
-    
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -190,15 +189,11 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
     try {
       const response = await fetch("/api/entries", { method: "POST", body: formData })
       if (!response.ok) throw new Error("Failed to save recording")
-      
+
       await response.json()
       console.log("Recording saved successfully")
 
-      // Trigger the cast composer on success
-      composeCast({
-        text: 'I created an entry to my diary with my voice on Voice Diary on @base! 🥳🥳',
-        embeds: ['https://voicediary.xyz']
-      })
+
 
       onSuccess()
       onClose()
@@ -213,7 +208,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
     if (animationRef.current) cancelAnimationFrame(animationRef.current)
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop())
     if (audioContextRef.current) audioContextRef.current.close()
-    
+
     intervalRef.current = null
     animationRef.current = null
     streamRef.current = null
@@ -278,7 +273,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
           ) : (
             <>
               <div className="flex flex-col items-center space-y-6 flex-1 w-full">
-                
+
                 {/* Breathing Orb Visualizer */}
                 <div
                   className="relative w-40 h-40 rounded-full"

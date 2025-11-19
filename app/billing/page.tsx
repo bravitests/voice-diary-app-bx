@@ -19,8 +19,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react"
-import { useEnhancedPaymentContract } from "@/hooks/useEnhancedPaymentContract"
-import { BillingErrorDisplay } from "@/components/billing-error-display"
+
 
 interface SubscriptionStatus {
   tier: "free" | "pro"
@@ -40,20 +39,8 @@ export default function BillingPage() {
   const router = useRouter()
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null)
   const [usage, setUsage] = useState<UsageStats | null>(null)
-  const [isUpgrading, setIsUpgrading] = useState(false)
   const [pricing, setPricing] = useState<any>(null)
   const [dataError, setDataError] = useState<string | null>(null)
-
-  const {
-    purchaseProSubscription,
-    isLoading: contractLoading,
-    isSuccess,
-    error: billingError,
-    txHash,
-    verificationStatus,
-    proPrice: ethPrice,
-    contractAddress
-  } = useEnhancedPaymentContract(user?.id)
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -83,14 +70,14 @@ export default function BillingPage() {
 
     try {
       setDataError(null)
-      
+
       // Fetch subscription status from API
       const response = await fetch(`/api/subscription/status?userId=${user.id}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch subscription data: ${response.status}`)
       }
       const { database } = await response.json()
-      
+
       const isActive = database.tier === 'pro' && new Date(database.expiry) > new Date()
 
       setSubscription({
@@ -119,46 +106,8 @@ export default function BillingPage() {
   }
 
   const handleUpgrade = async () => {
-    console.log('=== UPGRADE BUTTON CLICKED ===')
-    console.log('User:', user)
-    console.log('Contract Address:', contractAddress)
-    console.log('ETH Price:', ethPrice)
-    
-    setIsUpgrading(true)
-    
-    try {
-      const result = await purchaseProSubscription()
-      console.log('Purchase result:', result)
-      
-      if (!result.success) {
-        setIsUpgrading(false)
-      }
-    } catch (error) {
-      console.error("Upgrade failed:", error)
-      setIsUpgrading(false)
-    }
+    alert("Payments are currently being updated. Please check back later.")
   }
-
-  // Handle verification status changes
-  useEffect(() => {
-    if (verificationStatus === 'pending') {
-      // Start polling for subscription status updates
-      const intervalId = setInterval(() => {
-        // We check the subscription state variable directly.
-        // If it's already 'pro', the webhook was fast and we can stop.
-        if (subscription?.tier === 'pro') {
-          clearInterval(intervalId)
-          setIsUpgrading(false)
-          return
-        }
-        // Otherwise, fetch the latest data from the database
-        fetchSubscriptionData()
-      }, 5000) // Poll every 5 seconds
-
-      // Cleanup function to stop polling if the component unmounts
-      return () => clearInterval(intervalId)
-    }
-  }, [verificationStatus, subscription?.tier])
 
   const handleCancel = async () => {
     if (!confirm(
@@ -205,51 +154,6 @@ export default function BillingPage() {
       {/* Main Content */}
       <main className="px-4 py-6">
         <div className="max-w-md mx-auto space-y-6">
-          {/* Smart Contract Status */}
-          {!contractAddress && (
-            <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-                  <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">Smart contract not configured. Please check your environment variables.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Billing Error Display */}
-          {billingError && (
-            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
-                  <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">{billingError}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Payment Status */}
-          {verificationStatus !== 'idle' && (
-            <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
-              <CardContent className="p-4">
-                <div className="text-xs space-y-2">
-                  <p><strong>Payment Status:</strong></p>
-                  <div className="space-y-1">
-                    <p>Status: {verificationStatus}</p>
-                    {txHash && (
-                      <p>TX: <a href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{txHash.slice(0, 10)}...</a></p>
-                    )}
-                    {verificationStatus === 'confirmed' && (
-                      <p className="text-green-600 font-medium">✓ Payment Confirmed!</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-
 
           {/* Current Plan */}
           <Card className="border-border bg-card">
@@ -302,58 +206,58 @@ export default function BillingPage() {
                 <CardTitle className="text-base text-card-foreground">Usage This Month</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-              {/* Voice Entries */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Voice entries</span>
-                  <span className="font-medium text-card-foreground">
-                    {usage.entriesThisMonth}
-                    {subscription.limits.maxEntriesPerMonth > 0 && ` / ${subscription.limits.maxEntriesPerMonth}`}
-                  </span>
-                </div>
-                {subscription.limits.maxEntriesPerMonth > 0 && (
-                  <Progress
-                    value={(usage.entriesThisMonth / subscription.limits.maxEntriesPerMonth) * 100}
-                    className="h-2"
-                  />
-                )}
-                {usage.entriesThisMonth >= subscription.limits.maxEntriesPerMonth &&
-                  subscription.limits.maxEntriesPerMonth > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-amber-600">
-                      <AlertCircle className="w-3 h-3" />
-                      Limit reached
-                    </div>
+                {/* Voice Entries */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Voice entries</span>
+                    <span className="font-medium text-card-foreground">
+                      {usage.entriesThisMonth}
+                      {subscription.limits.maxEntriesPerMonth > 0 && ` / ${subscription.limits.maxEntriesPerMonth}`}
+                    </span>
+                  </div>
+                  {subscription.limits.maxEntriesPerMonth > 0 && (
+                    <Progress
+                      value={(usage.entriesThisMonth / subscription.limits.maxEntriesPerMonth) * 100}
+                      className="h-2"
+                    />
                   )}
-              </div>
-
-              {/* Chat Messages */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">AI chat messages</span>
-                  <span className="font-medium text-card-foreground">
-                    {usage.chatMessagesThisMonth}
-                    {subscription.limits.maxChatMessagesPerMonth > 0 &&
-                      ` / ${subscription.limits.maxChatMessagesPerMonth}`}
-                  </span>
+                  {usage.entriesThisMonth >= subscription.limits.maxEntriesPerMonth &&
+                    subscription.limits.maxEntriesPerMonth > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-amber-600">
+                        <AlertCircle className="w-3 h-3" />
+                        Limit reached
+                      </div>
+                    )}
                 </div>
-                {subscription.limits.maxChatMessagesPerMonth > 0 && (
-                  <Progress
-                    value={(usage.chatMessagesThisMonth / subscription.limits.maxChatMessagesPerMonth) * 100}
-                    className="h-2"
-                  />
-                )}
-              </div>
 
-              {/* Storage */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Storage used</span>
-                  <span className="font-medium text-card-foreground">
-                    {usage.storageMB} MB / {subscription.limits.maxStorageGB} GB
-                  </span>
+                {/* Chat Messages */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">AI chat messages</span>
+                    <span className="font-medium text-card-foreground">
+                      {usage.chatMessagesThisMonth}
+                      {subscription.limits.maxChatMessagesPerMonth > 0 &&
+                        ` / ${subscription.limits.maxChatMessagesPerMonth}`}
+                    </span>
+                  </div>
+                  {subscription.limits.maxChatMessagesPerMonth > 0 && (
+                    <Progress
+                      value={(usage.chatMessagesThisMonth / subscription.limits.maxChatMessagesPerMonth) * 100}
+                      className="h-2"
+                    />
+                  )}
                 </div>
-                <Progress value={(usage.storageMB / (subscription.limits.maxStorageGB * 1024)) * 100} className="h-2" />
-              </div>
+
+                {/* Storage */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Storage used</span>
+                    <span className="font-medium text-card-foreground">
+                      {usage.storageMB} MB / {subscription.limits.maxStorageGB} GB
+                    </span>
+                  </div>
+                  <Progress value={(usage.storageMB / (subscription.limits.maxStorageGB * 1024)) * 100} className="h-2" />
+                </div>
               </CardContent>
             </Card>
           )}
@@ -428,43 +332,10 @@ export default function BillingPage() {
                     <Button
                       className="w-full"
                       onClick={handleUpgrade}
-                      disabled={isUpgrading || contractLoading || !contractAddress || !user || verificationStatus === 'pending'}
                     >
-                      {(isUpgrading || contractLoading || verificationStatus === 'pending') && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      {verificationStatus === 'pending' ? "Verifying Payment..." :
-                       isUpgrading ? "Processing Payment..." : 
-                       `Upgrade to Pro - ${ethPrice ? ethPrice + ' ETH' : 'Loading...'}`}
+                      Upgrade to Pro
                     </Button>
-                    
-                    {txHash && (
-                      <div className="text-center space-y-1">
-                        <p className="text-xs text-muted-foreground">
-                          Transaction: 
-                          <a 
-                            href={`https://basescan.org/tx/${txHash}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-blue-600 hover:underline ml-1"
-                          >
-                            {txHash.slice(0, 10)}...{txHash.slice(-8)}
-                          </a>
-                        </p>
-                        {verificationStatus === 'pending' && (
-                          <p className="text-xs text-amber-600">⏳ Verifying payment on blockchain...</p>
-                        )}
-                        {verificationStatus === 'confirmed' && (
-                          <p className="text-xs text-green-600">✅ Payment confirmed!</p>
-                        )}
-                        {verificationStatus === 'failed' && (
-                          <p className="text-xs text-red-600">❌ Payment verification failed</p>
-                        )}
-                      </div>
-                    )}
-                    
-
                   </div>
-
-
                 </CardContent>
               </Card>
             </div>

@@ -5,9 +5,9 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { ThemeProvider } from "next-themes"
-import { MiniKitContextProvider } from "@/providers/MiniKitProvider"
+
 import { ConditionalBottomNav } from "@/components/conditional-bottom-nav"
-import { FarcasterSplashManager } from "@/components/farcaster-splash-manager"
+
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -96,15 +96,12 @@ export default function RootLayout({
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <body className={inter.className}>
         <Suspense fallback={null}>
-          <MiniKitContextProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-              <AuthProvider>
-                <FarcasterSplashManager />
-                {children}
-                <ConditionalBottomNav />
-              </AuthProvider>
-            </ThemeProvider>
-          </MiniKitContextProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <AuthProvider>
+              {children}
+              <ConditionalBottomNav />
+            </AuthProvider>
+          </ThemeProvider>
         </Suspense>
         <Analytics />
       </body>

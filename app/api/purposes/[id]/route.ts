@@ -4,13 +4,13 @@ import { db } from "@/lib/database"
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { searchParams } = new URL(request.url)
-    const walletAddress = searchParams.get("wallet_address")
+    const firebaseUid = searchParams.get("firebaseUid")
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Wallet address required" }, { status: 400 })
+    if (!firebaseUid) {
+      return NextResponse.json({ error: "Firebase UID required" }, { status: 400 })
     }
 
-    const user = await db.getUserByWallet(walletAddress)
+    const user = await db.getUserByWallet(firebaseUid)
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }

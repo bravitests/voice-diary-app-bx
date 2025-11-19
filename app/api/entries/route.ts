@@ -6,14 +6,14 @@ import { transcribeAudio, generateSummaryFromTranscript } from "@/lib/gemini-ai"
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const walletAddress = searchParams.get("walletAddress") || searchParams.get("wallet_address");
+    const firebaseUid = searchParams.get("firebaseUid");
     const purposeId = searchParams.get("purposeId");
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Missing wallet address" }, { status: 400 });
+    if (!firebaseUid) {
+      return NextResponse.json({ error: "Missing Firebase UID" }, { status: 400 });
     }
 
-    const user = await db.getUserByWallet(walletAddress);
+    const user = await db.getUserByWallet(firebaseUid);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -33,20 +33,20 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const audioFile = formData.get("audio") as File;
     const purposeId = formData.get("purposeId") as string;
-    const walletAddress = formData.get("walletAddress") as string;
+    const firebaseUid = formData.get("firebaseUid") as string;
     const recordedAt = formData.get("recordedAt") as string;
 
-    console.log("Parsed form data:", { purposeId, walletAddress, recordedAt, audioFileName: audioFile.name, audioFileSize: audioFile.size });
+    console.log("Parsed form data:", { purposeId, firebaseUid, recordedAt, audioFileName: audioFile.name, audioFileSize: audioFile.size });
 
-    if (!audioFile || !purposeId || !walletAddress) {
+    if (!audioFile || !purposeId || !firebaseUid) {
       console.error("Missing required fields");
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    console.log("Fetching user by wallet address...");
-    const user = await db.getUserByWallet(walletAddress);
+    console.log("Fetching user by Firebase UID...");
+    const user = await db.getUserByWallet(firebaseUid);
     if (!user) {
-      console.error("User not found for wallet address:", walletAddress);
+      console.error("User not found for UID:", firebaseUid);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     const userId = user.id;
@@ -57,15 +57,15 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const filename = `audio/${timestamp}-${random}.webm`;
-    
+
     const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     const blob = await put(filename, buffer, {
       access: 'public',
       contentType: audioFile.type || 'audio/webm'
     });
-    
+
     const publicUrl = blob.url;
     console.log("Audio file uploaded to:", publicUrl);
 
@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
     console.log("Transcription successful. Tokens used:", transcriptTokens, "Cost:", transcriptCost);
 
     if (transcript === "Transcription failed. Please try again.") {
-        console.error("Transcription failed");
-        return NextResponse.json({ error: "Transcription failed" }, { status: 500 });
+      console.error("Transcription failed");
+      return NextResponse.json({ error: "Transcription failed" }, { status: 500 });
     }
 
     // 3. Generate summary from the transcript
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
     });
     console.log("Database entry created:", newEntry.id);
-    
+
     // 5. Track API usage
     console.log("Tracking API usage...");
     const totalTokensUsed = transcriptTokens + summaryTokens;

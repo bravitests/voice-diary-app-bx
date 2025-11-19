@@ -25,28 +25,41 @@ import {
   ExternalLink,
   Edit,
 } from "lucide-react"
+interface Pricing {
+  monthly: {
+    eth: number
+    usd: number
+    ksh: number
+  }
+  yearly: {
+    eth: number
+    usd: number
+    ksh: number
+  }
+}
+
 export default function AdminPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const [pricing, setPricing] = useState(null)
+  const [pricing, setPricing] = useState<Pricing | null>(null)
   const [newPrice, setNewPrice] = useState('')
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false)
 
   useEffect(() => {
     console.log('Admin page - user:', user, 'isLoading:', isLoading)
-    
+
     if (!isLoading && !user) {
       console.log('No user, redirecting to home')
       router.push("/")
       return
     }
-    
+
     if (!isLoading && user && !user.isAdmin) {
       console.log('User not admin, redirecting to dashboard. User admin status:', user.isAdmin)
       router.push("/dashboard")
       return
     }
-    
+
     if (user?.isAdmin) {
       console.log('User is admin, fetching pricing')
       fetchPricing()
@@ -65,19 +78,19 @@ export default function AdminPage() {
 
   const updatePricing = async () => {
     if (!newPrice || !user) return
-    
+
     setIsUpdatingPrice(true)
     try {
       const response = await fetch('/api/admin/pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          walletAddress: user.walletAddress,
+          adminUid: user.firebaseUid,
           newPriceUSD: parseFloat(newPrice),
           action: 'updatePrice'
         })
       })
-      
+
       const data = await response.json()
       if (data.success) {
         setPricing(data.newPricing)
@@ -106,7 +119,7 @@ export default function AdminPage() {
     console.log('No user found, showing null')
     return null
   }
-  
+
   if (!user.isAdmin) {
     console.log('User is not admin:', user)
     return (
@@ -114,7 +127,7 @@ export default function AdminPage() {
         <div className="text-center">
           <h1 className="text-xl font-bold mb-2">Access Denied</h1>
           <p className="text-muted-foreground mb-4">You need admin privileges to access this page.</p>
-          <p className="text-xs text-muted-foreground">Wallet: {user.walletAddress}</p>
+          <p className="text-xs text-muted-foreground">User ID: {user.firebaseUid}</p>
           <p className="text-xs text-muted-foreground">Admin: {String(user.isAdmin)}</p>
           <Button onClick={() => router.push('/dashboard')} className="mt-4">
             Go to Dashboard
@@ -164,8 +177,8 @@ export default function AdminPage() {
                 <span className="text-sm font-medium">{user.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Wallet</span>
-                <span className="text-xs font-mono">{user.walletAddress.slice(0, 8)}...{user.walletAddress.slice(-6)}</span>
+                <span className="text-sm text-muted-foreground">User ID</span>
+                <span className="text-xs font-mono">{user.firebaseUid.slice(0, 8)}...</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
@@ -205,8 +218,8 @@ export default function AdminPage() {
                             placeholder="10.00"
                           />
                         </div>
-                        <Button 
-                          onClick={updatePricing} 
+                        <Button
+                          onClick={updatePricing}
                           disabled={isUpdatingPrice || !newPrice}
                           className="w-full"
                         >
@@ -276,8 +289,8 @@ export default function AdminPage() {
           <div className="space-y-3">
             <h2 className="text-lg font-bold text-foreground">Quick Actions</h2>
 
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start gap-3 h-12 bg-transparent"
               onClick={() => router.push("/admin/users")}
             >

@@ -44,23 +44,23 @@ export default function Dashboard() {
   }, [selectedPurpose]);
 
   useEffect(() => {
-    if (user?.walletAddress && !isLoading) {
+    if (user?.firebaseUid && !isLoading) {
       fetchPurposes()
       // Show name banner if user has no name
       setShowNameBanner(!user?.name)
     }
-  }, [user?.walletAddress, user?.name, isLoading])
+  }, [user?.firebaseUid, user?.name, isLoading])
 
   const fetchPurposes = async () => {
-    if (!user?.walletAddress) {
-      console.log("No wallet address available for fetching purposes")
+    if (!user?.firebaseUid) {
+      console.log("No firebase UID available for fetching purposes")
       return
     }
 
     setLoadingPurposes(true)
     setPurposeError(null)
     try {
-      const response = await fetch(`/api/purposes?wallet_address=${user.walletAddress}`)
+      const response = await fetch(`/api/purposes?firebaseUid=${user.firebaseUid}`)
       const data = await response.json()
       if (response.ok) {
         setPurposes(data.purposes || [])
@@ -107,7 +107,7 @@ export default function Dashboard() {
     }
   }
 
-  
+
 
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
 
@@ -122,9 +122,9 @@ export default function Dashboard() {
             <span className="font-bold text-lg text-foreground">VoiceDiary</span>
           </div>
           <div className="flex items-center gap-2">
-            <ShareButton 
-              variant="ghost" 
-              size="sm" 
+            <ShareButton
+              variant="ghost"
+              size="sm"
               className="h-8 w-8 p-0"
             />
             <Button variant="ghost" size="sm" onClick={logout}>
@@ -145,17 +145,17 @@ export default function Dashboard() {
               <p className="text-sm font-medium text-foreground">Complete your profile</p>
               <p className="text-xs text-muted-foreground">Set your name to personalize your experience</p>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => window.location.href = '/profile'}
               className="text-primary hover:text-primary/80 text-xs px-2 h-7"
             >
               Set Name
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowNameBanner(false)}
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
             >
@@ -169,7 +169,7 @@ export default function Dashboard() {
         <div className="max-w-lg mx-auto space-y-6 flex-1 flex flex-col w-full">
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
-              Welcome back, {user?.name || user?.walletAddress?.slice(0, 6) || 'User'}!
+              Welcome back, {user?.name || 'User'}!
             </h1>
             <p className="text-muted-foreground">Ready to capture your thoughts?</p>
           </div>
@@ -255,7 +255,7 @@ export default function Dashboard() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                walletAddress: user?.walletAddress,
+                firebaseUid: user?.firebaseUid,
                 name,
                 description,
                 color

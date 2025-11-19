@@ -21,7 +21,7 @@ import {
 
 interface User {
   id: string
-  walletAddress: string
+  firebaseUid: string
   name?: string
   email?: string
   subscriptionTier: string
@@ -61,9 +61,9 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setIsLoadingUsers(true)
-      const response = await fetch(`/api/admin/users?adminWallet=${user?.walletAddress}`)
+      const response = await fetch(`/api/admin/users?adminUid=${user?.firebaseUid}`)
       const data = await response.json()
-      
+
       if (response.ok) {
         setUsers(data.users)
         setStats(data.stats)
@@ -78,21 +78,21 @@ export default function AdminUsersPage() {
     }
   }
 
-  const handleAdminAction = async (targetWallet: string, action: string) => {
+  const handleAdminAction = async (targetUid: string, action: string) => {
     if (!user) return
-    
-    setActionLoading(targetWallet)
+
+    setActionLoading(targetUid)
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminWallet: user.walletAddress,
-          targetWallet,
+          adminUid: user.firebaseUid,
+          targetUid,
           action
         })
       })
-      
+
       const data = await response.json()
       if (data.success) {
         alert(data.message)
@@ -108,10 +108,10 @@ export default function AdminUsersPage() {
     }
   }
 
-  const filteredUsers = users.filter(u => 
+  const filteredUsers = users.filter(u =>
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.walletAddress.toLowerCase().includes(searchTerm.toLowerCase())
+    u.firebaseUid.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   if (isLoading) {
@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
       {/* Main Content */}
       <main className="px-4 py-6 pb-24">
         <div className="max-w-md mx-auto space-y-6">
-          
+
           {/* Stats */}
           {stats && (
             <div className="grid grid-cols-3 gap-3">
@@ -205,7 +205,7 @@ export default function AdminUsersPage() {
                           {u.isAdmin && <Shield className="w-3 h-3 text-primary" />}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
-                          {u.email || u.walletAddress.slice(0, 8) + "..." + u.walletAddress.slice(-6)}
+                          {u.email || u.firebaseUid.slice(0, 8) + "..."}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -219,24 +219,24 @@ export default function AdminUsersPage() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                       <span>{u.recordingCount} recordings</span>
                       <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
                     </div>
 
                     {/* Admin Actions */}
-                    {u.walletAddress !== user.walletAddress && (
+                    {u.firebaseUid !== user.firebaseUid && (
                       <div className="flex gap-2">
                         {!u.isAdmin ? (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleAdminAction(u.walletAddress, 'makeAdmin')}
-                            disabled={actionLoading === u.walletAddress}
+                            onClick={() => handleAdminAction(u.firebaseUid, 'makeAdmin')}
+                            disabled={actionLoading === u.firebaseUid}
                             className="flex-1"
                           >
-                            {actionLoading === u.walletAddress ? (
+                            {actionLoading === u.firebaseUid ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
                             ) : (
                               <>
@@ -249,11 +249,11 @@ export default function AdminUsersPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleAdminAction(u.walletAddress, 'removeAdmin')}
-                            disabled={actionLoading === u.walletAddress}
+                            onClick={() => handleAdminAction(u.firebaseUid, 'removeAdmin')}
+                            disabled={actionLoading === u.firebaseUid}
                             className="flex-1 text-destructive hover:text-destructive"
                           >
-                            {actionLoading === u.walletAddress ? (
+                            {actionLoading === u.firebaseUid ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
                             ) : (
                               <>

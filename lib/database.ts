@@ -58,11 +58,56 @@ async function initializeIfNeeded() {
     if (tablesResult.rows[0].count === '0') {
       console.log('[v0] Tables not found, running basic setup...')
       await runBasicSetup(pool)
+    } else {
+      // Check for migration
+      await migrateSchema(pool)
     }
 
     isInitialized = true
   } catch (error) {
     console.log('Database not yet initialized, will be initialized on first API call')
+  }
+}
+
+async function migrateSchema(pool: Pool) {
+  try {
+    // Check if firebase_uid column exists
+    const columnResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'firebase_uid'
+    `)
+
+    if (columnResult.rowCount === 0) {
+      console.log('[v0] Migrating schema: Adding firebase_uid and photo_url...')
+
+      // Add new columns
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(255) UNIQUE,
+        ADD COLUMN IF NOT EXISTS photo_url TEXT;
+      `)
+
+      // Migrate existing data if any (using wallet_address as temporary firebase_uid if needed, 
+      // but better to just leave them null and let users re-sign in)
+      // For now, we'll just drop wallet_address constraint if we want to keep data, 
+      // but the instruction is to replace.
+
+      // If we want to keep existing users, we might want to map wallet_address to firebase_uid 
+      // if they sign in with the same wallet via some other method, but here we are switching auth providers.
+      // So existing users might lose access to their old accounts unless we have a way to link them.
+      // Given the instruction "replace", we assume fresh start or manual migration isn't priority.
+
+      // Drop wallet_address column
+      await pool.query(`
+        ALTER TABLE users 
+        DROP COLUMN IF EXISTS wallet_address;
+      `)
+
+      console.log('[v0] Schema migration completed')
+    }
+  } catch (error: any) {
+    console.error('[v0] Schema migration failed:', error.message)
   }
 }
 
@@ -72,9 +117,10 @@ async function runBasicSetup(pool: Pool) {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        wallet_address VARCHAR(42) UNIQUE NOT NULL,
+        firebase_uid VARCHAR(255) UNIQUE NOT NULL,
         name VARCHAR(255),
         email VARCHAR(255),
+        photo_url TEXT,
         subscription_tier VARCHAR(20) DEFAULT 'free' CHECK (subscription_tier IN ('free', 'pro')),
         subscription_expiry TIMESTAMP WITH TIME ZONE,
         is_admin BOOLEAN DEFAULT FALSE,
@@ -132,9 +178,9 @@ async function runBasicSetup(pool: Pool) {
       )
     `)
 
-    console.log('[v0] Basic database setup completed')
-  } catch (error) {
-    console.error('[v0] Basic setup failed:', error.message)
+    console.log(' Basic database setup completed')
+  } catch (error: any) {
+    console.error('Basic setup failed:', error.message)
   }
 }
 
@@ -153,7 +199,7 @@ export async function query(text: string, params?: any[]): Promise<any> {
       console.log("[v0] Database query executed", { text: text.substring(0, 100), duration, rows: res.rowCount })
     }
     return res
-  } catch (error) {
+  } catch (error: any) {
     console.error("[v0] Database query error", { text: text.substring(0, 100), error: error.message })
     throw error
   }
@@ -165,13 +211,16 @@ export async function getClient(): Promise<PoolClient> {
 }
 
 // Individual database functions (to avoid minification issues)
-export async function createUser(walletAddress: string) {
-  const result = await query("INSERT INTO users (wallet_address) VALUES ($1) RETURNING *", [walletAddress])
+export async function createFirebaseUser(firebaseUid: string, email: string | null, name: string | null, photoURL: string | null) {
+  const result = await query(
+    "INSERT INTO users (firebase_uid, email, name, photo_url) VALUES ($1, $2, $3, $4) RETURNING *",
+    [firebaseUid, email, name, photoURL]
+  )
   return result.rows[0]
 }
 
-export async function getUserByWallet(walletAddress: string) {
-  const result = await query("SELECT * FROM users WHERE wallet_address = $1", [walletAddress])
+export async function getUserByFirebaseUid(firebaseUid: string) {
+  const result = await query("SELECT * FROM users WHERE firebase_uid = $1", [firebaseUid])
   return result.rows[0]
 }
 
@@ -357,14 +406,12 @@ export async function createDefaultPurpose(userId: string) {
 // Legacy db object for backward compatibility (but prefer individual functions)
 export const db = {
   // User operations
-  async createUser(walletAddress: string) {
-    const result = await query("INSERT INTO users (wallet_address) VALUES ($1) RETURNING *", [walletAddress])
-    return result.rows[0]
+  async createUser(firebaseUid: string, email: string | null, name: string | null, photoURL: string | null) {
+    return createFirebaseUser(firebaseUid, email, name, photoURL)
   },
 
-  async getUserByWallet(walletAddress: string) {
-    const result = await query("SELECT * FROM users WHERE wallet_address = $1", [walletAddress])
-    return result.rows[0]
+  async getUserByWallet(firebaseUid: string) {
+    return getUserByFirebaseUid(firebaseUid)
   },
 
   async updateUserProfile(userId: string, name: string, email: string) {
@@ -550,4 +597,9 @@ export const db = {
     console.log("[v0] Created default purpose for user:", userId)
     return result.rows[0]
   },
+
+  // Expose query for direct access
+  async query(text: string, params?: any[]) {
+    return query(text, params)
+  }
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Share2, Loader2 } from 'lucide-react'
-import { useComposeCast } from '@coinbase/onchainkit/minikit'
+
 
 interface ShareButtonProps {
   entry?: {
@@ -18,22 +18,11 @@ interface ShareButtonProps {
 
 export function ShareButton({ entry, variant = 'outline', size = 'sm', className }: ShareButtonProps) {
   const [isSharing, setIsSharing] = useState(false)
-  const { composeCast } = useComposeCast()
-
   const handleShare = async () => {
     setIsSharing(true)
-    
+
     try {
-      const shareText = 'Just recorded my thoughts with VoiceDiary! 🎙️ AI-powered voice journaling on @base ✨'
-      
-      await composeCast({
-        text: shareText,
-        embeds: ['https://voicediary.xyz']
-      })
-    } catch (error) {
-      console.error('Failed to share via Farcaster:', error)
-      
-      // Fallback to native sharing
+      // Native sharing
       if (navigator.share) {
         try {
           await navigator.share({
@@ -51,6 +40,14 @@ export function ShareButton({ entry, variant = 'outline', size = 'sm', className
             console.error('Clipboard failed:', clipboardError)
           }
         }
+      } else {
+        // Fallback for desktop/unsupported browsers
+        try {
+          await navigator.clipboard.writeText('https://voicediary.xyz')
+          alert('Link copied to clipboard!')
+        } catch (clipboardError) {
+          console.error('Clipboard failed:', clipboardError)
+        }
       }
     } finally {
       setIsSharing(false)
@@ -58,7 +55,7 @@ export function ShareButton({ entry, variant = 'outline', size = 'sm', className
   }
 
   return (
-    <Button 
+    <Button
       variant={variant}
       size={size}
       onClick={handleShare}
