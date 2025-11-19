@@ -31,7 +31,7 @@ interface RecordingModalProps {
 export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: RecordingModalProps) {
   const { user } = useAuth()
   const { resolvedTheme } = useTheme()
-  const colors = getModalThemeColors(resolvedTheme || 'light')
+  const colors = getModalThemeColors((resolvedTheme as 'light' | 'dark') || 'light')
 
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
@@ -183,7 +183,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
     const formData = new FormData()
     formData.append("audio", audioBlob)
     formData.append("purposeId", purpose)
-    formData.append("walletAddress", user.walletAddress)
+    formData.append("firebaseUid", user.firebaseUid)
     formData.append("recordedAt", new Date().toISOString())
 
     try {

@@ -106,6 +106,30 @@ async function migrateSchema(pool: Pool) {
 
       console.log('[v0] Schema migration completed')
     }
+
+    // Check if payment_tracking table exists and has wallet_address as NOT NULL
+    // We want to make it nullable
+    const paymentTableResult = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'payment_tracking'
+    `)
+
+    if (paymentTableResult.rows[0].count > 0) {
+      const walletColumnResult = await pool.query(`
+        SELECT is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'payment_tracking' AND column_name = 'wallet_address'
+      `)
+
+      if (walletColumnResult.rowCount !== null && walletColumnResult.rowCount > 0 && walletColumnResult.rows[0].is_nullable === 'NO') {
+        console.log('[v0] Migrating payment_tracking: Making wallet_address nullable...')
+        await pool.query(`
+          ALTER TABLE payment_tracking 
+          ALTER COLUMN wallet_address DROP NOT NULL;
+        `)
+      }
+    }
   } catch (error: any) {
     console.error('[v0] Schema migration failed:', error.message)
   }

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { put } from '@vercel/blob';
-import { db } from "@/lib/database";
+import { getUserByFirebaseUid, getUserRecordings, createRecording, trackApiUsage } from "@/lib/database";
 import { transcribeAudio, generateSummaryFromTranscript } from "@/lib/gemini-ai";
 
 export async function GET(request: NextRequest) {
@@ -13,12 +13,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing Firebase UID" }, { status: 400 });
     }
 
-    const user = await db.getUserByWallet(firebaseUid);
+    const user = await getUserByFirebaseUid(firebaseUid);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const entries = await db.getUserRecordings(user.id, purposeId === "all" ? undefined : purposeId || undefined);
+    const entries = await getUserRecordings(user.id, purposeId === "all" ? undefined : purposeId || undefined);
 
     return NextResponse.json({ entries });
   } catch (error) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Fetching user by Firebase UID...");
-    const user = await db.getUserByWallet(firebaseUid);
+    const user = await getUserByFirebaseUid(firebaseUid);
     if (!user) {
       console.error("User not found for UID:", firebaseUid);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Save the complete entry to the database
     console.log("Saving entry to database...");
-    const newEntry = await db.createRecording({
+    const newEntry = await createRecording({
       userId,
       purposeId,
       audioUrl: publicUrl,
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     console.log("Tracking API usage...");
     const totalTokensUsed = transcriptTokens + summaryTokens;
     const totalCost = transcriptCost + summaryCost;
-    await db.trackApiUsage(userId, "transcription", totalTokensUsed, totalCost);
+    await trackApiUsage(userId, "transcription", totalTokensUsed, totalCost);
     console.log("API usage tracked");
 
     console.log("Returning new entry to client");
