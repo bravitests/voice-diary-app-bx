@@ -51,6 +51,29 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     console.log("User found:", userId);
 
+    // Check Subscription Limits
+    const { getUserPaystackSubscription, getUserRecordings } = await import("@/lib/database");
+    const subscription = await getUserPaystackSubscription(userId);
+
+    // Default Free Limits
+    let limits = { recording_limit_seconds: 120, entries_per_month: 10 };
+
+    if (subscription && subscription.plan_limits) {
+      limits = subscription.plan_limits;
+    }
+
+    // Check monthly entry limit
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const userRecordings = await getUserRecordings(userId);
+    const entriesThisMonth = userRecordings.filter((r: any) => new Date(r.created_at) >= startOfMonth).length;
+
+    if (entriesThisMonth >= limits.entries_per_month) {
+      return NextResponse.json({
+        error: "Monthly entry limit reached. Please upgrade your plan."
+      }, { status: 403 });
+    }
+
     // 1. Fetch the audio file from Firebase Storage for transcription
     console.log("Fetching audio file from URL for transcription...");
     const audioResponse = await fetch(audioUrl);
@@ -58,6 +81,11 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to fetch audio file from storage");
     }
     const audioBlob = await audioResponse.blob();
+
+    // Check recording duration limit (approximate check via blob size or if metadata available)
+    // For better accuracy, client should enforce, but we can check here if we had duration.
+    // Since we don't have duration in metadata yet, we rely on client enforcement for now, 
+    // or we could decode audio here but that's heavy.
 
     // 2. Transcribe the audio
     console.log("Transcribing audio with Gemini API...");
