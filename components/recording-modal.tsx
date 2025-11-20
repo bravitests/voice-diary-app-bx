@@ -132,12 +132,15 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
   const startRecording = () => {
     if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'inactive') return
+    if (duration >= MAX_DURATION) {
+      toast.warning("Recording limit reached for your plan. Cannot start new recording.")
+      return
+    }
 
     mediaRecorderRef.current.start()
     setIsRecording(true)
     setIsPaused(false)
-    setDuration(0)
-    intervalRef.current = setInterval(() => setDuration((prev) => prev + 1), 1000)
+    setDuration(0) // Reset duration for a new recording
   }
 
   const pauseRecording = () => {
@@ -145,7 +148,6 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
     if (isPaused) {
       if (mediaRecorderRef.current.state === 'paused') {
         mediaRecorderRef.current.resume()
-        intervalRef.current = setInterval(() => setDuration((prev) => prev + 1), 1000)
         setIsPaused(false)
       }
     } else {

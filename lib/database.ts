@@ -115,24 +115,69 @@ async function migrateSchema(pool: Pool) {
       WHERE table_schema = 'public' AND table_name = 'payment_tracking'
     `)
 
-    if (paymentTableResult.rows[0].count > 0) {
-      const walletColumnResult = await pool.query(`
-        SELECT is_nullable 
-        FROM information_schema.columns 
-        WHERE table_name = 'payment_tracking' AND column_name = 'wallet_address'
-      `)
+    // Check if subscription_plans table exists
+    const plansTableResult = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'subscription_plans'
+    `)
 
-      if (walletColumnResult.rowCount !== null && walletColumnResult.rowCount > 0 && walletColumnResult.rows[0].is_nullable === 'NO') {
-        console.log('[v0] Migrating payment_tracking: Making wallet_address nullable...')
-        await pool.query(`
-          ALTER TABLE payment_tracking 
-          ALTER COLUMN wallet_address DROP NOT NULL;
-        `)
-      }
+    if (plansTableResult.rows[0].count === '0') {
+      console.log('[v0] Creating subscription tables...')
+      await createSubscriptionTables(pool)
     }
   } catch (error: any) {
     console.error('[v0] Schema migration failed:', error.message)
   }
+}
+
+async function createSubscriptionTables(pool: Pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscription_plans (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(50) NOT NULL UNIQUE,
+      price INTEGER NOT NULL DEFAULT 0,
+      currency VARCHAR(3) DEFAULT 'KES',
+      interval VARCHAR(20) DEFAULT 'monthly',
+      paystack_plan_code VARCHAR(100),
+      limits JSONB NOT NULL DEFAULT '{}',
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS paystack_subscriptions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan_id UUID REFERENCES subscription_plans(id) ON DELETE SET NULL,
+      paystack_subscription_code VARCHAR(100),
+      paystack_customer_code VARCHAR(100),
+      paystack_email_token VARCHAR(100),
+      status VARCHAR(20) DEFAULT 'active',
+      current_period_start TIMESTAMP WITH TIME ZONE,
+      current_period_end TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `)
+
+  // Add indexes
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_paystack_subscriptions_user_id ON paystack_subscriptions(user_id)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_paystack_subscriptions_status ON paystack_subscriptions(status)`)
+
+  // Insert default plans
+  await pool.query(`
+    INSERT INTO subscription_plans (name, price, limits, is_active)
+    VALUES 
+      ('Free', 0, '{"recording_limit_seconds": 120, "entries_per_month": 10, "chats_per_day": 5}', TRUE),
+      ('Starter', 100, '{"recording_limit_seconds": 300, "entries_per_month": 30, "chats_per_day": 20}', TRUE),
+      ('Pro', 200, '{"recording_limit_seconds": 600, "entries_per_month": 1000, "chats_per_day": 100}', TRUE)
+    ON CONFLICT (name) DO NOTHING
+  `)
+
+  console.log('[v0] Subscription tables created and default plans inserted')
 }
 
 async function runBasicSetup(pool: Pool) {
@@ -145,7 +190,7 @@ async function runBasicSetup(pool: Pool) {
         name VARCHAR(255),
         email VARCHAR(255),
         photo_url TEXT,
-        subscription_tier VARCHAR(20) DEFAULT 'free' CHECK (subscription_tier IN ('free', 'pro')),
+        subscription_tier VARCHAR(20) DEFAULT 'free',
         subscription_expiry TIMESTAMP WITH TIME ZONE,
         is_admin BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -201,6 +246,9 @@ async function runBasicSetup(pool: Pool) {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
     `)
+
+    // Create subscription tables
+    await createSubscriptionTables(pool)
 
     console.log(' Basic database setup completed')
   } catch (error: any) {
@@ -626,4 +674,95 @@ export const db = {
   async query(text: string, params?: any[]) {
     return query(text, params)
   }
+}
+
+// Paystack Subscription Functions
+export async function getSubscriptionPlans() {
+  const result = await query("SELECT * FROM subscription_plans WHERE is_active = TRUE ORDER BY price ASC")
+  return result.rows
+}
+
+export async function getSubscriptionPlan(planId: string) {
+  const result = await query("SELECT * FROM subscription_plans WHERE id = $1", [planId])
+  return result.rows[0]
+}
+
+export async function getSubscriptionPlanByName(name: string) {
+  const result = await query("SELECT * FROM subscription_plans WHERE name = $1", [name])
+  return result.rows[0]
+}
+
+export async function createPaystackSubscription(data: {
+  userId: string
+  planId: string
+  paystackReference: string
+  status: string
+}) {
+  const { userId, planId, paystackReference, status } = data
+  const result = await query(
+    `INSERT INTO paystack_subscriptions (user_id, plan_id, paystack_reference, status, current_period_start)
+     VALUES ($1, $2, $3, $4, NOW())
+     RETURNING *`,
+    [userId, planId, paystackReference, status]
+  )
+  return result.rows[0]
+}
+
+export async function updatePaystackSubscription(reference: string, data: {
+  status?: string
+  paystackSubscriptionCode?: string
+  paystackCustomerCode?: string
+  paystackEmailToken?: string
+  currentPeriodStart?: Date
+  currentPeriodEnd?: Date
+}) {
+  const setClause = []
+  const values = []
+  let paramIndex = 1
+
+  if (data.status) {
+    setClause.push(`status = $${paramIndex++}`)
+    values.push(data.status)
+  }
+  if (data.paystackSubscriptionCode) {
+    setClause.push(`paystack_subscription_code = $${paramIndex++}`)
+    values.push(data.paystackSubscriptionCode)
+  }
+  if (data.paystackCustomerCode) {
+    setClause.push(`paystack_customer_code = $${paramIndex++}`)
+    values.push(data.paystackCustomerCode)
+  }
+  if (data.paystackEmailToken) {
+    setClause.push(`paystack_email_token = $${paramIndex++}`)
+    values.push(data.paystackEmailToken)
+  }
+  if (data.currentPeriodStart) {
+    setClause.push(`current_period_start = $${paramIndex++}`)
+    values.push(data.currentPeriodStart)
+  }
+  if (data.currentPeriodEnd) {
+    setClause.push(`current_period_end = $${paramIndex++}`)
+    values.push(data.currentPeriodEnd)
+  }
+
+  if (setClause.length === 0) return null
+
+  values.push(reference)
+  const queryText = `UPDATE paystack_subscriptions SET ${setClause.join(", ")}, updated_at = NOW() WHERE paystack_reference = $${paramIndex} RETURNING *`
+
+  const result = await query(queryText, values)
+  return result.rows[0]
+}
+
+export async function getUserPaystackSubscription(userId: string) {
+  const result = await query(
+    `SELECT s.*, p.name as plan_name, p.limits as plan_limits
+     FROM paystack_subscriptions s
+     JOIN subscription_plans p ON s.plan_id = p.id
+     WHERE s.user_id = $1 AND s.status = 'active'
+     ORDER BY s.created_at DESC
+     LIMIT 1`,
+    [userId]
+  )
+  return result.rows[0]
 }
