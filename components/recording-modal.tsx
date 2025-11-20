@@ -77,6 +77,10 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
     setIsInitialized(false)
 
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Browser API not supported or insecure context")
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
@@ -99,9 +103,15 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
       startVisualization()
       setIsInitialized(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error accessing microphone:", error)
-      setMicError("Microphone access was denied. Please enable it in your browser settings.")
+      if (error.message === "Browser API not supported or insecure context") {
+        setMicError("Microphone access requires a secure connection (HTTPS). Please ensure you are using HTTPS.")
+      } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        setMicError("Microphone access was denied. Please enable it in your browser settings.")
+      } else {
+        setMicError("An error occurred while accessing the microphone. Please try again.")
+      }
       setIsInitialized(false)
     }
   }
@@ -180,20 +190,31 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
       return
     }
 
-    const formData = new FormData()
-    formData.append("audio", audioBlob)
-    formData.append("purposeId", purpose)
-    formData.append("firebaseUid", user.firebaseUid)
-    formData.append("recordedAt", new Date().toISOString())
-
     try {
+      // Dynamically import firebase storage functions to avoid SSR issues
+      const { storage } = await import("@/lib/firebase")
+      const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage")
+
+      const timestamp = Date.now()
+      const filename = `recordings/${user.firebaseUid}/${timestamp}.webm`
+      const storageRef = ref(storage, filename)
+
+      // Upload to Firebase Storage
+      await uploadBytes(storageRef, audioBlob)
+      const audioUrl = await getDownloadURL(storageRef)
+      console.log("File uploaded to Firebase Storage:", audioUrl)
+
+      const formData = new FormData()
+      formData.append("audioUrl", audioUrl)
+      formData.append("purposeId", purpose)
+      formData.append("firebaseUid", user.firebaseUid)
+      formData.append("recordedAt", new Date().toISOString())
+
       const response = await fetch("/api/entries", { method: "POST", body: formData })
       if (!response.ok) throw new Error("Failed to save recording")
 
       await response.json()
       console.log("Recording saved successfully")
-
-
 
       onSuccess()
       onClose()
