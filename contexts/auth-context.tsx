@@ -16,7 +16,7 @@ interface User {
   email: string | null
   name: string | null
   photoURL: string | null
-  subscriptionTier: "free" | "pro"
+  subscriptionTier: "free" | "starter" | "pro"
   subscriptionExpiry?: Date
   isAdmin?: boolean
 }

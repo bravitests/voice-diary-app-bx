@@ -63,9 +63,32 @@ async function initializeIfNeeded() {
       await migrateSchema(pool)
     }
 
+    // Ensure admin user exists and has correct privileges
+    await ensureAdminUser(pool)
+
     isInitialized = true
   } catch (error) {
     console.log('Database not yet initialized, will be initialized on first API call')
+  }
+}
+
+async function ensureAdminUser(pool: Pool) {
+  try {
+    const adminEmail = 'nyatorobravian@gmail.com'
+
+    // Check if user exists
+    const userResult = await pool.query("SELECT id, is_admin FROM users WHERE email = $1", [adminEmail])
+
+    if (userResult.rowCount && userResult.rowCount > 0) {
+      const user = userResult.rows[0]
+      if (!user.is_admin) {
+        console.log(`[v0] Promoting ${adminEmail} to admin...`)
+        await pool.query("UPDATE users SET is_admin = TRUE WHERE email = $1", [adminEmail])
+        console.log(`[v0] Successfully promoted ${adminEmail} to admin`)
+      }
+    }
+  } catch (error: any) {
+    console.error('[v0] Failed to ensure admin user:', error.message)
   }
 }
 
