@@ -26,7 +26,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Free plan activated" })
         }
 
+        // Check for secret key
+        if (!process.env.PAYSTACK_SECRET_KEY) {
+            console.error("PAYSTACK_SECRET_KEY is missing")
+            return NextResponse.json({ error: "Server configuration error: Missing Paystack key" }, { status: 500 })
+        }
+
         // Initialize Paystack transaction
+        console.log(`Initializing Paystack transaction for ${user.email} with amount ${plan.price}`)
         const transaction = await initializeTransaction(
             user.email || `user-${user.id}@voicediary.xyz`, // Fallback email
             plan.price,
@@ -44,7 +51,11 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ authorizationUrl: transaction.authorization_url, reference: transaction.reference })
     } catch (error: any) {
-        console.error("Payment initialization error:", error)
+        console.error("Payment initialization error details:", {
+            message: error.message,
+            stack: error.stack,
+            response: error.response?.data // If it's an axios-like error
+        })
         return NextResponse.json({ error: error.message || "Failed to initialize payment" }, { status: 500 })
     }
 }

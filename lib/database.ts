@@ -77,14 +77,35 @@ async function ensureAdminUser(pool: Pool) {
     const adminEmail = 'nyatorobravian@gmail.com'
 
     // Check if user exists
-    const userResult = await pool.query("SELECT id, is_admin FROM users WHERE email = $1", [adminEmail])
+    const userResult = await pool.query("SELECT id, is_admin, subscription_tier FROM users WHERE email = $1", [adminEmail])
 
     if (userResult.rowCount && userResult.rowCount > 0) {
       const user = userResult.rows[0]
+      let updates = []
+      let values = []
+      let paramIndex = 1
+
       if (!user.is_admin) {
-        console.log(`[v0] Promoting ${adminEmail} to admin...`)
-        await pool.query("UPDATE users SET is_admin = TRUE WHERE email = $1", [adminEmail])
-        console.log(`[v0] Successfully promoted ${adminEmail} to admin`)
+        updates.push(`is_admin = $${paramIndex++}`)
+        values.push(true)
+      }
+
+      if (user.subscription_tier !== 'pro') {
+        updates.push(`subscription_tier = $${paramIndex++}`)
+        values.push('pro')
+
+        // Set expiry to 100 years from now
+        const futureDate = new Date()
+        futureDate.setFullYear(futureDate.getFullYear() + 100)
+        updates.push(`subscription_expiry = $${paramIndex++}`)
+        values.push(futureDate)
+      }
+
+      if (updates.length > 0) {
+        console.log(`[v0] Updating privileges for ${adminEmail}...`)
+        values.push(adminEmail)
+        await pool.query(`UPDATE users SET ${updates.join(", ")} WHERE email = $${paramIndex}`, values)
+        console.log(`[v0] Successfully updated privileges for ${adminEmail}`)
       }
     }
   } catch (error: any) {
