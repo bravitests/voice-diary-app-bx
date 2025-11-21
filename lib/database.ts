@@ -248,12 +248,11 @@ export async function getUserByFirebaseUid(firebaseUid: string) {
   return result.rows[0]
 }
 
-export async function updateUserProfile(userId: string, name: string, email: string) {
-  const result = await query("UPDATE users SET name = $1, email = $2, updated_at = NOW() WHERE id = $3 RETURNING *", [
-    name,
-    email,
-    userId,
-  ])
+export async function updateUserProfile(userId: string, name: string, email: string, photoURL?: string) {
+  const result = await query(
+    "UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email), photo_url = COALESCE($3, photo_url), updated_at = NOW() WHERE id = $4 RETURNING *",
+    [name, email, photoURL || null, userId]
+  )
   return result.rows[0]
 }
 

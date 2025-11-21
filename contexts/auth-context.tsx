@@ -9,6 +9,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from "firebase/auth"
+import Cookies from "js-cookie"
 
 interface User {
   id: string
@@ -38,6 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Set session cookie
+        Cookies.set("session", "true", { expires: 7 })
+
         try {
           // Sync with backend
           const response = await fetch('/api/users/create', {
@@ -88,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
         }
       } else {
+        // Remove session cookie
+        Cookies.remove("session")
         setUser(null)
       }
       setIsLoading(false)
@@ -109,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await firebaseSignOut(auth)
+      Cookies.remove("session")
     } catch (error) {
       console.error("Error signing out", error)
     }
@@ -120,9 +127,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Optimistic update
     setUser(prev => prev ? { ...prev, ...data } : null)
 
-    // TODO: Implement backend update if needed
-    // For now, we just update local state which might be overwritten on refresh
-    // You should probably add an API endpoint to update user profile
+    try {
+      const response = await fetch('/api/users/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          ...data
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
+      }
+
+      const { user: updatedUser } = await response.json()
+
+      // Update with server response to ensure consistency
+      setUser(prev => prev ? {
+        ...prev,
+        ...updatedUser
+      } : null)
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      // Revert optimistic update if needed, or just show error
+      // For now we just log it as the optimistic update provides better UX
+    }
   }, [user])
 
   const contextValue = useMemo(() => ({
