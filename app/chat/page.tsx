@@ -399,7 +399,10 @@ export default function ChatPage() {
                               : "bg-card border border-border text-card-foreground rounded-bl-md"
                               }`}
                           >
-                            <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
+                            <div className={`text-sm leading-relaxed prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent ${message.role === "user"
+                                ? "prose-p:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-li:text-primary-foreground prose-code:text-primary-foreground prose-a:text-primary-foreground"
+                                : "dark:prose-invert"
+                              }`}>
                               <ReactMarkdown>
                                 {displayContent}
                               </ReactMarkdown>

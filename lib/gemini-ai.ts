@@ -161,11 +161,10 @@ export async function generateSummaryFromAudio(
 Please analyze this voice diary audio and provide:
 
 1. SUMMARY: A concise 2-3 sentence summary of the main points and key themes
-2. INSIGHTS: ${
-      subscriptionTier === "pro"
+2. INSIGHTS: ${subscriptionTier === "pro"
         ? "Detailed psychological insights, emotional patterns, recurring themes, and actionable recommendations for personal growth and self-reflection"
         : "Basic emotional tone, key themes, and general observations about the content"
-    }
+      }
 
 Format your response as JSON with keys: summary, insights
 `
@@ -191,7 +190,7 @@ Format your response as JSON with keys: summary, insights
       // Fallback if JSON parsing fails
       const summaryMatch = text.match(/summary['":\s]*([^,}]+)/i)
       const insightsMatch = text.match(/insights['":\s]*([^}]+)/i)
-      
+
       parsedResponse = {
         summary: summaryMatch ? summaryMatch[1].replace(/['"]/g, '').trim() : "Unable to generate summary",
         insights: insightsMatch ? insightsMatch[1].replace(/['"]/g, '').trim() : "Unable to generate insights",
@@ -306,7 +305,7 @@ export async function generateChatResponse(
   try {
     const apiKey = getNextApiKey()
     const genAI = new GoogleGenerativeAI(apiKey)
-    
+
     const systemInstruction = `You are a supportive AI companion for a voice diary app. You're chatting with ${userName} about their ${purpose} entries.
 
 ${transcriptions ? `Here are ${userName}'s recent ${purpose} transcriptions:
@@ -318,9 +317,22 @@ ${transcriptions}
 - Help them reflect and gain insights from their voice journaling
 - Keep responses conversational and supportive
 - Focus on personal growth and self-reflection
-- Reference their actual diary content when relevant`
+- Reference their actual diary content when relevant
+- CRITICAL SAFETY & MENTAL HEALTH PROTOCOL:
+  1. Detection: Actively monitor for signs of severe depression, self-harm ideation, hopelessness, or "darkness".
+  2. Intervention:
+     - If you detect these signs, do not just offer generic advice.
+     - Gently suggest speaking to a professional or a trusted friend.
+     - Provide these specific affordable/free resources in Kenya:
+       * Kenya Red Cross: 1199 (Toll Free)
+       * Befrienders Kenya: 0722 178 177 (Suicide Prevention)
+       * Nairobi Mental Health (Affordable options available)
+  3. Isolation Handling:
+     - IF AND ONLY IF the user explicitly states they have "no friends", "no one to talk to", or feeling completely isolated:
+     - You may offer this specific personal contact as a supportive listener (last resort): "0106818767" (The app creator).
+     - Frame this as a personal, human offer of support from the creator of Voice Diary, who is willing to listen.`
 
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       systemInstruction
     })
