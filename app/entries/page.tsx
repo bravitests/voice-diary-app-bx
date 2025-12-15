@@ -70,7 +70,7 @@ export default function EntriesPage() {
   }, [user, isLoading, router])
 
   useEffect(() => {
-    if (user?.walletAddress) {
+    if (user?.firebaseUid) {
       fetchPurposes()
     }
   }, [user])
@@ -83,7 +83,7 @@ export default function EntriesPage() {
 
   const fetchPurposes = async () => {
     try {
-      const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
+      const response = await fetch(`/api/purposes?firebaseUid=${user?.firebaseUid}`)
       const data = await response.json()
       if (response.ok) {
         setPurposes(data.purposes)
@@ -101,7 +101,7 @@ export default function EntriesPage() {
     setIsLoadingEntries(true)
     try {
       const purposeParam = selectedFilter === "all" ? "" : `&purposeId=${selectedFilter}`
-      const response = await fetch(`/api/entries?wallet_address=${user.walletAddress}${purposeParam}`)
+      const response = await fetch(`/api/entries?firebaseUid=${user.firebaseUid}${purposeParam}`)
       if (!response.ok) {
         throw new Error("Failed to fetch entries")
       }
@@ -160,7 +160,7 @@ export default function EntriesPage() {
 
   const toggleAudio = (entryId: string, audioUrl: string) => {
     const currentState = audioStates[entryId]
-    
+
     if (currentState?.isPlaying) {
       currentState.audio?.pause()
       setAudioStates(prev => ({
@@ -174,25 +174,25 @@ export default function EntriesPage() {
           state.audio.pause()
         }
       })
-      
+
       let audio = currentState?.audio
       if (!audio) {
         audio = new Audio(audioUrl)
-        
+
         audio.addEventListener('loadedmetadata', () => {
           setAudioStates(prev => ({
             ...prev,
             [entryId]: { ...prev[entryId], duration: audio!.duration }
           }))
         })
-        
+
         audio.addEventListener('timeupdate', () => {
           setAudioStates(prev => ({
             ...prev,
             [entryId]: { ...prev[entryId], progress: audio!.currentTime }
           }))
         })
-        
+
         audio.addEventListener('ended', () => {
           setAudioStates(prev => ({
             ...prev,
@@ -200,7 +200,7 @@ export default function EntriesPage() {
           }))
         })
       }
-      
+
       audio.play()
       setAudioStates(prev => ({
         ...prev,
@@ -324,7 +324,7 @@ export default function EntriesPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">{formatDate(entry.created_at)}</p>
-                          
+
                         </div>
                       </div>
 
@@ -333,12 +333,12 @@ export default function EntriesPage() {
                         <p className="text-sm text-card-foreground leading-relaxed">
                           {entry.summary || "Processing summary..."}
                         </p>
-                        
+
                         {/* Transcript Toggle */}
                         {entry.transcript && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => toggleTranscript(entry.id)}
                             className="text-xs p-0 h-auto text-muted-foreground hover:text-foreground"
                           >
@@ -349,7 +349,7 @@ export default function EntriesPage() {
                             )}
                           </Button>
                         )}
-                        
+
                         {/* Expanded Transcript */}
                         {expandedTranscripts.has(entry.id) && entry.transcript && (
                           <div className="mt-2 p-3 bg-muted/50 rounded-md border">
@@ -362,7 +362,7 @@ export default function EntriesPage() {
                       </div>
                       {/* Share Button */}
                       <div className="pt-2 border-t border-border">
-                        <ShareButton 
+                        <ShareButton
                           entry={{
                             id: entry.id,
                             summary: entry.summary,
@@ -374,9 +374,9 @@ export default function EntriesPage() {
                       {/* Audio Player */}
                       <div className="space-y-2 pt-2">
                         <div className="flex items-center justify-between">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-xs"
                             onClick={() => toggleAudio(entry.id, entry.audio_url)}
                           >
@@ -390,15 +390,15 @@ export default function EntriesPage() {
                             {formatTime(entry.created_at)}
                           </p>
                         </div>
-                        
+
                         {/* Progress Bar */}
                         {audioStates[entry.id]?.duration > 0 && (
                           <div className="space-y-1">
                             <div className="w-full bg-muted rounded-full h-1">
-                              <div 
+                              <div
                                 className="bg-primary h-1 rounded-full transition-all duration-100"
-                                style={{ 
-                                  width: `${(audioStates[entry.id].progress / audioStates[entry.id].duration) * 100}%` 
+                                style={{
+                                  width: `${(audioStates[entry.id].progress / audioStates[entry.id].duration) * 100}%`
                                 }}
                               />
                             </div>
@@ -416,7 +416,7 @@ export default function EntriesPage() {
             )}
           </div>
 
-          
+
         </div>
       </main>
     </div>

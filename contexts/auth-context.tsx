@@ -1,163 +1,179 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-import { useAccount } from "wagmi"
-import { useMiniKit } from "@coinbase/onchainkit/minikit"
+import { auth } from "@/lib/firebase"
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User as FirebaseUser
+} from "firebase/auth"
+import Cookies from "js-cookie"
 
 interface User {
   id: string
-  walletAddress: string
-  name?: string
-  email?: string
-  isAdmin?: boolean
+  firebaseUid: string
+  email: string | null
+  name: string | null
+  photoURL: string | null
   subscriptionTier: "free" | "pro"
   subscriptionExpiry?: Date
+  isAdmin?: boolean
 }
 
 interface AuthContextType {
   user: User | null
-  updateProfile: (name: string, email: string) => Promise<boolean>
-  logout: () => void
+  signInWithGoogle: () => Promise<void>
+  logout: () => Promise<void>
+  updateProfile: (data: Partial<User>) => Promise<void>
   isLoading: boolean
-  isWalletConnected: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { address, isConnected } = useAccount()
-  const { context } = useMiniKit()
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true) // Start as true to handle initial load
+  const [isLoading, setIsLoading] = useState(true)
 
-  // STEP 1: On initial mount, check for a user in localStorage first.
-  // This is the highest priority and provides an instant "logged in" experience.
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      // If parsing fails, ensure corrupted data is cleared
-      localStorage.removeItem("user");
-    } finally {
-      // We are done with the initial check, so we can stop loading.
-      setIsLoading(false);
-    }
-  }, []); // Empty dependency array ensures this runs only once on mount
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Set session cookie
+        Cookies.set("session", "true", { expires: 7 })
 
-  // The function to create or fetch a user from your backend
-  const createUserFromWallet = useCallback(async (walletAddress: string) => {
-    setIsLoading(true);
-    try {
-      // Get user info from MiniKit context if available
-      const userInfo = context?.user ? {
-        name: context.user.displayName || context.user.username,
-        email: null // Farcaster doesn't provide email
-      } : {};
+        try {
+          // Sync with backend
+          const response = await fetch('/api/users/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firebaseUid: firebaseUser.uid,
+              name: firebaseUser.displayName,
+              email: firebaseUser.email,
+              photoURL: firebaseUser.photoURL
+            })
+          })
 
-      const response = await fetch('/api/users/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          walletAddress,
-          ...userInfo
-        })
-      });
-
-      if (response.ok) {
-        const { user: dbUser } = await response.json();
-        setUser(dbUser);
-        // Persist the new user session to localStorage
-        localStorage.setItem("user", JSON.stringify(dbUser));
-        console.log("User authenticated and stored in localStorage:", dbUser.id);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error("Authentication API call failed:", errorData.error);
-        if (typeof window !== 'undefined') {
-          alert(`Authentication failed: ${errorData.error}.`);
+          if (response.ok) {
+            const { user: dbUser } = await response.json()
+            setUser({
+              id: dbUser.id, // Use DB ID
+              firebaseUid: firebaseUser.uid,
+              email: dbUser.email,
+              name: dbUser.name,
+              photoURL: firebaseUser.photoURL,
+              subscriptionTier: dbUser.subscriptionTier,
+              subscriptionExpiry: dbUser.subscriptionExpiry,
+              isAdmin: dbUser.isAdmin // Assuming backend returns this
+            })
+          } else {
+            console.error("Failed to sync user with backend")
+            // Fallback to Firebase user data if backend fails? 
+            // Or maybe logout? For now, fallback.
+            setUser({
+              id: firebaseUser.uid,
+              firebaseUid: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              subscriptionTier: "free",
+            })
+          }
+        } catch (error) {
+          console.error("Error syncing user with backend", error)
+          setUser({
+            id: firebaseUser.uid,
+            firebaseUid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            subscriptionTier: "free",
+          })
         }
+      } else {
+        // Remove session cookie
+        Cookies.remove("session")
+        setUser(null)
       }
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(auth, provider)
     } catch (error) {
-      console.error("Network or authentication error:", error);
-      if (typeof window !== 'undefined') {
-        alert('A network error occurred during authentication. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
+      console.error("Error signing in with Google", error)
+      throw error
     }
-  }, []);
+  }, [])
 
-  // STEP 2: Only if there's no user from localStorage, we treat wallet connection
-  // as a "login" event.
-  useEffect(() => {
-    // This effect will only run if:
-    // 1. The wallet is connected (`isConnected` and `address` are available)
-    // 2. There is NO user currently in the state (`!user`)
-    if (isConnected && address && !user) {
-      createUserFromWallet(address);
+  const logout = useCallback(async () => {
+    try {
+      await firebaseSignOut(auth)
+      Cookies.remove("session")
+    } catch (error) {
+      console.error("Error signing out", error)
     }
-  }, [isConnected, address, user, createUserFromWallet]);
+  }, [])
 
-  const updateProfile = useCallback(async (name: string, email: string): Promise<boolean> => {
-    if (!user) return false;
+  const updateProfile = useCallback(async (data: Partial<User>) => {
+    if (!user) return
+
+    // Optimistic update
+    setUser(prev => prev ? { ...prev, ...data } : null)
 
     try {
-      // Call the API to update the database
-      const response = await fetch('/api/users/create', {
-        method: 'POST',
+      const response = await fetch('/api/users/update', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          walletAddress: user.walletAddress,
-          name,
-          email
+        body: JSON.stringify({
+          userId: user.id,
+          ...data
         })
-      });
+      })
 
-      if (response.ok) {
-        const { user: dbUser } = await response.json();
-        setUser(dbUser);
-        localStorage.setItem("user", JSON.stringify(dbUser));
-        console.log("User profile updated successfully:", dbUser.id);
-        return true;
-      } else {
-        console.error("Profile update API call failed");
-        return false;
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
       }
-    } catch (error) {
-      console.error("Profile update failed:", error);
-      return false;
-    }
-  }, [user]);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    // This is the only place where the user is intentionally removed from localStorage
-    localStorage.removeItem("user");
-    console.log("User logged out and removed from localStorage.");
-  }, []);
+      const { user: updatedUser } = await response.json()
+
+      // Update with server response to ensure consistency
+      setUser(prev => prev ? {
+        ...prev,
+        ...updatedUser
+      } : null)
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      // Revert optimistic update if needed, or just show error
+      // For now we just log it as the optimistic update provides better UX
+    }
+  }, [user])
 
   const contextValue = useMemo(() => ({
     user,
-    updateProfile,
+    signInWithGoogle,
     logout,
+    updateProfile,
     isLoading,
-    isWalletConnected: isConnected,
-  }), [user, updateProfile, logout, isLoading, isConnected]);
+  }), [user, signInWithGoogle, logout, updateProfile, isLoading])
 
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext)
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("useAuth must be used within an AuthProvider")
   }
-  return context;
+  return context
 }

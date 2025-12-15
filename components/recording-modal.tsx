@@ -6,17 +6,17 @@ import { X, Mic, Pause, Play } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
 import { getModalThemeColors } from "@/lib/modal-theme"
-import { useComposeCast } from '@coinbase/onchainkit/minikit'
+
 import dynamic from 'next/dynamic'
 
 const VoiceVisualizer = dynamic(() => import('./voicevisualizer'), {
   ssr: false, // Disable server-side rendering for this component
   loading: () => (
-    <div 
+    <div
       className="absolute inset-0 rounded-full"
-      style={{ 
+      style={{
         background: 'radial-gradient(circle, rgba(100,100,255,0.1) 0%, rgba(0,0,0,0.9) 100%)'
-      }} 
+      }}
     />
   )
 })
@@ -31,9 +31,8 @@ interface RecordingModalProps {
 export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: RecordingModalProps) {
   const { user } = useAuth()
   const { resolvedTheme } = useTheme()
-  const { composeCast } = useComposeCast()
-  const colors = getModalThemeColors(resolvedTheme || 'light')
-  
+  const colors = getModalThemeColors((resolvedTheme as 'light' | 'dark') || 'light')
+
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -44,7 +43,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
   const isSavingRef = useRef(isSaving)
   isSavingRef.current = isSaving
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -73,11 +72,15 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
   const initializeAudio = async () => {
     if (isInitialized) return
-    
+
     setMicError(null)
     setIsInitialized(false)
-    
+
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Browser API not supported or insecure context")
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
@@ -100,9 +103,15 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
 
       startVisualization()
       setIsInitialized(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error accessing microphone:", error)
-      setMicError("Microphone access was denied. Please enable it in your browser settings.")
+      if (error.message === "Browser API not supported or insecure context") {
+        setMicError("Microphone access requires a secure connection (HTTPS). Please ensure you are using HTTPS.")
+      } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        setMicError("Microphone access was denied. Please enable it in your browser settings.")
+      } else {
+        setMicError("An error occurred while accessing the microphone. Please try again.")
+      }
       setIsInitialized(false)
     }
   }
@@ -181,24 +190,31 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
       return
     }
 
-    const formData = new FormData()
-    formData.append("audio", audioBlob)
-    formData.append("purposeId", purpose)
-    formData.append("walletAddress", user.walletAddress)
-    formData.append("recordedAt", new Date().toISOString())
-
     try {
+      // Dynamically import firebase storage functions to avoid SSR issues
+      const { storage } = await import("@/lib/firebase")
+      const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage")
+
+      const timestamp = Date.now()
+      const filename = `recordings/${user.firebaseUid}/${timestamp}.webm`
+      const storageRef = ref(storage, filename)
+
+      // Upload to Firebase Storage
+      await uploadBytes(storageRef, audioBlob)
+      const audioUrl = await getDownloadURL(storageRef)
+      console.log("File uploaded to Firebase Storage:", audioUrl)
+
+      const formData = new FormData()
+      formData.append("audioUrl", audioUrl)
+      formData.append("purposeId", purpose)
+      formData.append("firebaseUid", user.firebaseUid)
+      formData.append("recordedAt", new Date().toISOString())
+
       const response = await fetch("/api/entries", { method: "POST", body: formData })
       if (!response.ok) throw new Error("Failed to save recording")
-      
+
       await response.json()
       console.log("Recording saved successfully")
-
-      // Trigger the cast composer on success
-      composeCast({
-        text: 'I created an entry to my diary with my voice on Voice Diary on @base! 🥳🥳',
-        embeds: ['https://voicediary.xyz']
-      })
 
       onSuccess()
       onClose()
@@ -213,7 +229,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
     if (animationRef.current) cancelAnimationFrame(animationRef.current)
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop())
     if (audioContextRef.current) audioContextRef.current.close()
-    
+
     intervalRef.current = null
     animationRef.current = null
     streamRef.current = null
@@ -278,7 +294,7 @@ export function RecordingModal({ isOpen, onClose, purpose, onSuccess }: Recordin
           ) : (
             <>
               <div className="flex flex-col items-center space-y-6 flex-1 w-full">
-                
+
                 {/* Breathing Orb Visualizer */}
                 <div
                   className="relative w-40 h-40 rounded-full"

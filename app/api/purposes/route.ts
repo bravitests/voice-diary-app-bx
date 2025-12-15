@@ -4,17 +4,17 @@ import { db } from "@/lib/database"
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const walletAddress = searchParams.get("wallet_address")
+    const firebaseUid = searchParams.get("firebaseUid")
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Wallet address required" }, { status: 400 })
+    if (!firebaseUid) {
+      return NextResponse.json({ error: "Firebase UID required" }, { status: 400 })
     }
 
-    let user = await db.getUserByWallet(walletAddress)
-    
+    let user = await db.getUserByWallet(firebaseUid) // Using the wrapper which calls getUserByFirebaseUid
+
     // If user doesn't exist, create them
     if (!user) {
-      user = await db.createUser(walletAddress)
+      user = await db.createUser(firebaseUid, null, null, null)
       console.log("[v0] Created new user:", user.id)
     }
 
@@ -38,17 +38,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress, name, description, color } = await request.json()
+    const { firebaseUid, name, description, color } = await request.json()
 
-    if (!walletAddress || !name) {
-      return NextResponse.json({ error: "Wallet address and name required" }, { status: 400 })
+    if (!firebaseUid || !name) {
+      return NextResponse.json({ error: "Firebase UID and name required" }, { status: 400 })
     }
 
-    let user = await db.getUserByWallet(walletAddress)
-    
+    let user = await db.getUserByWallet(firebaseUid)
+
     // Create user if they don't exist
     if (!user) {
-      user = await db.createUser(walletAddress)
+      user = await db.createUser(firebaseUid, null, null, null)
     }
 
     const purpose = await db.createPurpose(user.id, name, description, false, color || '#cdb4db')

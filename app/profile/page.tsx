@@ -3,7 +3,7 @@
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { useMiniKit } from "@coinbase/onchainkit/minikit"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,8 +25,8 @@ import {
 } from "lucide-react"
 
 export default function ProfilePage() {
+
   const { user, updateProfile, logout, isLoading } = useAuth()
-  const { context } = useMiniKit()
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -54,10 +54,11 @@ export default function ProfilePage() {
   if (!user) return null
 
   const handleSaveProfile = async () => {
-    const success = await updateProfile(name, email)
-    if (success) {
+    try {
+      await updateProfile({ name, email })
       alert("Profile updated successfully!")
-    } else {
+    } catch (error) {
+      console.error("Failed to update profile:", error)
       alert("Failed to update profile. Please try again.")
     }
   }
@@ -94,10 +95,10 @@ export default function ProfilePage() {
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
-                  {context?.user?.pfpUrl ? (
-                    <img 
-                      src={context.user.pfpUrl} 
-                      alt="Profile" 
+                  {user?.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt="Profile"
                       className="w-full h-full object-cover"
                     />
                   ) : (

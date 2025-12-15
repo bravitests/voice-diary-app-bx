@@ -4,10 +4,10 @@ import { query } from "@/lib/database"
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const adminWallet = searchParams.get('adminWallet')
+    const adminUid = searchParams.get('adminUid')
 
     // Verify admin
-    const adminResult = await query("SELECT is_admin FROM users WHERE wallet_address = $1", [adminWallet])
+    const adminResult = await query("SELECT is_admin FROM users WHERE firebase_uid = $1", [adminUid])
     if (!adminResult.rows[0]?.is_admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const usersResult = await query(`
       SELECT 
         u.id,
-        u.wallet_address,
+        u.firebase_uid,
         u.name,
         u.email,
         u.subscription_tier,
@@ -26,13 +26,13 @@ export async function GET(request: NextRequest) {
         COUNT(r.id) as recording_count
       FROM users u
       LEFT JOIN recordings r ON u.id = r.user_id
-      GROUP BY u.id, u.wallet_address, u.name, u.email, u.subscription_tier, u.subscription_expiry, u.is_admin, u.created_at
+      GROUP BY u.id, u.firebase_uid, u.name, u.email, u.subscription_tier, u.subscription_expiry, u.is_admin, u.created_at
       ORDER BY u.created_at DESC
     `)
 
-    const users = usersResult.rows.map((user: { id: any; wallet_address: any; name: any; email: any; subscription_tier: any; subscription_expiry: any; is_admin: any; created_at: any; recording_count: string }) => ({
+    const users = usersResult.rows.map((user: { id: any; firebase_uid: any; name: any; email: any; subscription_tier: any; subscription_expiry: any; is_admin: any; created_at: any; recording_count: string }) => ({
       id: user.id,
-      walletAddress: user.wallet_address,
+      firebaseUid: user.firebase_uid,
       name: user.name,
       email: user.email,
       subscriptionTier: user.subscription_tier,
@@ -66,16 +66,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { adminWallet, targetWallet, action } = await request.json()
+    const { adminUid, targetUid, action } = await request.json()
 
     // Verify admin
-    const adminResult = await query("SELECT is_admin FROM users WHERE wallet_address = $1", [adminWallet])
+    const adminResult = await query("SELECT is_admin FROM users WHERE firebase_uid = $1", [adminUid])
     if (!adminResult.rows[0]?.is_admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
     // Get target user
-    const userResult = await query("SELECT * FROM users WHERE wallet_address = $1", [targetWallet])
+    const userResult = await query("SELECT * FROM users WHERE firebase_uid = $1", [targetUid])
     if (!userResult.rows.length) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
@@ -83,9 +83,9 @@ export async function POST(request: NextRequest) {
     const user = userResult.rows[0]
 
     if (action === "makeAdmin") {
-      await query("UPDATE users SET is_admin = true WHERE wallet_address = $1", [targetWallet])
-      console.log(`Admin ${adminWallet} made ${targetWallet} an admin`)
-      
+      await query("UPDATE users SET is_admin = true WHERE firebase_uid = $1", [targetUid])
+      console.log(`Admin ${adminUid} made ${targetUid} an admin`)
+
       return NextResponse.json({
         success: true,
         message: "User granted admin privileges"
@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Cannot remove the last admin" }, { status: 400 })
       }
 
-      await query("UPDATE users SET is_admin = false WHERE wallet_address = $1", [targetWallet])
-      console.log(`Admin ${adminWallet} removed admin privileges from ${targetWallet}`)
-      
+      await query("UPDATE users SET is_admin = false WHERE firebase_uid = $1", [targetUid])
+      console.log(`Admin ${adminUid} removed admin privileges from ${targetUid}`)
+
       return NextResponse.json({
         success: true,
         message: "Admin privileges removed"

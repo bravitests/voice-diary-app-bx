@@ -33,14 +33,14 @@ export function PurposeManager() {
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | null>(null)
 
   useEffect(() => {
-    if (user?.walletAddress) {
+    if (user?.firebaseUid) {
       fetchPurposes()
     }
   }, [user])
 
   const fetchPurposes = async () => {
     try {
-      const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
+      const response = await fetch(`/api/purposes?firebaseUid=${user?.firebaseUid}`)
       const data = await response.json()
       if (response.ok) {
         setPurposes(data.purposes)
@@ -52,13 +52,11 @@ export function PurposeManager() {
     }
   }
 
-
-
   const handleDeletePurpose = async () => {
     if (!selectedPurpose) return
 
     try {
-      const response = await fetch(`/api/purposes/${selectedPurpose.id}?wallet_address=${user?.walletAddress}`, {
+      const response = await fetch(`/api/purposes/${selectedPurpose.id}?firebaseUid=${user?.firebaseUid}`, {
         method: "DELETE",
       })
 

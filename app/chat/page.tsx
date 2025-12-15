@@ -85,14 +85,14 @@ export default function ChatPage() {
   }, [user, isLoading, router])
 
   useEffect(() => {
-    if (user?.walletAddress) {
+    if (user?.firebaseUid) {
       fetchPurposes()
     }
   }, [user])
 
   const fetchPurposes = async () => {
     try {
-      const response = await fetch(`/api/purposes?wallet_address=${user?.walletAddress}`)
+      const response = await fetch(`/api/purposes?firebaseUid=${user?.firebaseUid}`)
       const data = await response.json()
       if (response.ok) {
         setPurposes(data.purposes)
