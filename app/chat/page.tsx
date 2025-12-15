@@ -23,6 +23,7 @@ import {
   Send,
   Bot,
 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 
 interface Purpose {
   id: string
@@ -114,7 +115,7 @@ export default function ChatPage() {
 
     setIsSettingUp(true)
     setLoadingMessage(0)
-    
+
     // Rotate loading messages
     const messageInterval = setInterval(() => {
       setLoadingMessage(prev => (prev + 1) % loadingMessages.length)
@@ -123,10 +124,10 @@ export default function ChatPage() {
     try {
       // First, check if there's an existing session
       const existingSessionResponse = await fetch(`/api/chat/sessions?userId=${user.id}&purposeId=${selectedPurpose}`)
-      
+
       if (existingSessionResponse.ok) {
         const { session } = await existingSessionResponse.json()
-        
+
         if (session && session.messages.length > 0) {
           // Use existing session and messages
           setSessionId(session.id)
@@ -260,10 +261,10 @@ export default function ChatPage() {
       <header className="flex-shrink-0 px-4 py-4 border-b border-border bg-background">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => router.push("/dashboard")} 
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/dashboard")}
               className="h-9 w-9 p-0"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -282,8 +283,8 @@ export default function ChatPage() {
       {selectedPurpose && !isSettingUp && (
         <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-muted/30">
           <div className="max-w-4xl mx-auto">
-            <Select 
-              value={selectedPurpose} 
+            <Select
+              value={selectedPurpose}
               onValueChange={(value) => {
                 setSelectedPurpose(value)
                 setMessages([])
@@ -372,13 +373,13 @@ export default function ChatPage() {
               </div>
             ) : (
               /* Chat Messages */
-              <div className="flex-1 min-h-0 py-4 pb-20">
+              <div className="flex-1 min-h-0 py-4 pb-44">
                 <ScrollArea className="h-full">
                   <div className="space-y-6 pb-4">
                     {messages.map((message) => {
                       const isLongMessage = message.role === "user" && message.content.length > 150
                       const isExpanded = expandedMessages.has(message.id)
-                      const displayContent = isLongMessage && !isExpanded 
+                      const displayContent = isLongMessage && !isExpanded
                         ? message.content.substring(0, 150) + "..."
                         : message.content
 
@@ -393,27 +394,28 @@ export default function ChatPage() {
                             </div>
                           )}
                           <div
-                            className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-                              message.role === "user"
-                                ? "bg-primary text-primary-foreground rounded-br-md"
-                                : "bg-card border border-border text-card-foreground rounded-bl-md"
-                            }`}
+                            className={`max-w-[75%] rounded-2xl px-4 py-3 ${message.role === "user"
+                              ? "bg-primary text-primary-foreground rounded-br-md"
+                              : "bg-card border border-border text-card-foreground rounded-bl-md"
+                              }`}
                           >
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayContent}</p>
+                            <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
+                              <ReactMarkdown>
+                                {displayContent}
+                              </ReactMarkdown>
+                            </div>
                             {isLongMessage && (
                               <button
                                 onClick={() => toggleMessageExpansion(message.id)}
-                                className={`text-xs mt-2 underline hover:no-underline transition-all ${
-                                  message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
-                                }`}
+                                className={`text-xs mt-2 underline hover:no-underline transition-all ${message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
+                                  }`}
                               >
                                 {isExpanded ? "Show less" : "Show more"}
                               </button>
                             )}
                             <p
-                              className={`text-xs mt-2 ${
-                                message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"
-                              }`}
+                              className={`text-xs mt-2 ${message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"
+                                }`}
                             >
                               {new Date(message.created_at).toLocaleTimeString("en-US", {
                                 hour: "numeric",

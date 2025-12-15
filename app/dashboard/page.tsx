@@ -107,7 +107,7 @@ export default function Dashboard() {
     }
   }
 
-  
+
 
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
 
@@ -122,9 +122,9 @@ export default function Dashboard() {
             <span className="font-bold text-lg text-foreground">VoiceDiary</span>
           </div>
           <div className="flex items-center gap-2">
-            <ShareButton 
-              variant="ghost" 
-              size="sm" 
+            <ShareButton
+              variant="ghost"
+              size="sm"
               className="h-8 w-8 p-0"
             />
             <Button variant="ghost" size="sm" onClick={logout}>
@@ -145,17 +145,17 @@ export default function Dashboard() {
               <p className="text-sm font-medium text-foreground">Complete your profile</p>
               <p className="text-xs text-muted-foreground">Set your name to personalize your experience</p>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => window.location.href = '/profile'}
               className="text-primary hover:text-primary/80 text-xs px-2 h-7"
             >
               Set Name
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowNameBanner(false)}
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
             >
@@ -177,7 +177,7 @@ export default function Dashboard() {
           <Card className="border-border bg-card">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-card-foreground">What's on your mind?</h2>
+                <h2 className="font-semibold text-card-foreground">Select or Create a Purpose</h2>
                 <Button variant="ghost" size="sm" onClick={() => setShowAddPurpose(true)} className="h-8 w-8 p-0">
                   <Plus className="w-4 h-4" />
                 </Button>
