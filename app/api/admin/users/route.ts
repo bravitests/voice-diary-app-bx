@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         COUNT(r.id) as recording_count
       FROM users u
       LEFT JOIN recordings r ON u.id = r.user_id
-      GROUP BY u.id, u.firebase_uid, u.name, u.email, u.subscription_tier, u.subscription_expiry, u.is_admin, u.created_at
+      GROUP BY u.id
       ORDER BY u.created_at DESC
     `)
 
