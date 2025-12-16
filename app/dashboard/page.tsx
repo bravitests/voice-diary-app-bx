@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mic, Settings, Loader2, Plus, X, User, Share2 } from "lucide-react"
+import { Mic, LogOut, Loader2, Plus, X, User, Share2 } from "lucide-react"
 import Image from "next/image"
 import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
@@ -128,7 +128,7 @@ export default function Dashboard() {
               className="h-8 w-8 p-0"
             />
             <Button variant="ghost" size="sm" onClick={logout}>
-              <Settings className="w-4 h-4" />
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>

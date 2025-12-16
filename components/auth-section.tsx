@@ -63,7 +63,7 @@ export function AuthSection() {
                             <Button
                                 onClick={handleSignIn}
                                 disabled={isSigningIn}
-                                className="w-full max-w-xs bg-white text-black border border-gray-200 hover:bg-gray-50 hover:border-gray-300 dark:bg-white dark:text-black dark:hover:bg-gray-100"
+                                className="w-full max-w-xs bg-slate-100 text-black border border-slate-200 hover:bg-slate-200 hover:border-slate-300 dark:bg-white dark:text-black dark:hover:bg-gray-100 shadow-sm"
                             >
                                 {isSigningIn ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
