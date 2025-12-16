@@ -67,6 +67,16 @@ export async function POST(request: NextRequest) {
       user = updateResult.rows[0]
     }
 
+    // Auto-promote specific admin email
+    if (email === 'nyatorobravian@gmail.com' && !user.is_admin) {
+      console.log("[v0] Auto-promoting user to admin:", email)
+      const adminUpdate = await query(
+        "UPDATE users SET is_admin = true WHERE id = $1 RETURNING *",
+        [user.id]
+      )
+      user = adminUpdate.rows[0]
+    }
+
     return NextResponse.json({
       user: {
         id: user.id,
