@@ -10,6 +10,7 @@ import Image from "next/image"
 import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
 import { ShareButton } from "@/components/share-button"
+import { useRouter } from "next/navigation"
 
 interface Purpose {
   id: string
@@ -21,6 +22,7 @@ interface Purpose {
 
 export default function Dashboard() {
   const { user, logout, isLoading } = useAuth()
+  const router = useRouter()
   const [selectedPurpose, setSelectedPurpose] = useState("")
   const [purposes, setPurposes] = useState<Purpose[]>([])
   const [showRecordingModal, setShowRecordingModal] = useState(false)
@@ -110,7 +112,10 @@ export default function Dashboard() {
 
 
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
-
+  const handleLogout = () => {
+    logout()
+    router.push("/")
+  }
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="px-4 py-6 border-b border-border">
@@ -127,7 +132,7 @@ export default function Dashboard() {
               size="sm"
               className="h-8 w-8 p-0"
             />
-            <Button variant="ghost" size="sm" onClick={logout}>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
