@@ -3,7 +3,7 @@ import { updateUserProfile } from "@/lib/database"
 
 export async function PUT(request: NextRequest) {
     try {
-        const { userId, name, email, photoURL } = await request.json()
+        const { userId, name, email, photoURL, fcmToken } = await request.json()
 
         if (!userId) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 })
@@ -11,7 +11,7 @@ export async function PUT(request: NextRequest) {
 
         console.log("[API] Updating user profile:", userId)
 
-        const updatedUser = await updateUserProfile(userId, name, email, photoURL)
+        const updatedUser = await updateUserProfile(userId, name, email, photoURL, fcmToken)
 
         if (!updatedUser) {
             return NextResponse.json({ error: "User not found" }, { status: 404 })

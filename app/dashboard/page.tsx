@@ -11,6 +11,7 @@ import { RecordingModal } from "@/components/recording-modal"
 import { AddPurposeModal } from "@/components/add-purpose-modal"
 import { ShareButton } from "@/components/share-button"
 import { useRouter } from "next/navigation"
+import { useFcmToken } from "@/hooks/use-fcm-token"
 
 interface Purpose {
   id: string
@@ -110,6 +111,8 @@ export default function Dashboard() {
   }
 
 
+  /* Notification setup */
+  const { requestPermission, notificationPermissionStatus } = useFcmToken()
 
   const selectedPurposeData = purposes.find((p) => p.id === selectedPurpose)
   const handleLogout = () => {
@@ -127,6 +130,16 @@ export default function Dashboard() {
             <span className="font-bold text-lg text-foreground">VoiceDiary</span>
           </div>
           <div className="flex items-center gap-2">
+            {notificationPermissionStatus === 'default' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={requestPermission}
+                className="text-xs h-8"
+              >
+                Enable Notifications
+              </Button>
+            )}
             <ShareButton
               variant="ghost"
               size="sm"

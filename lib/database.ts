@@ -85,7 +85,8 @@ async function migrateSchema(pool: Pool) {
       await pool.query(`
         ALTER TABLE users 
         ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(255) UNIQUE,
-        ADD COLUMN IF NOT EXISTS photo_url TEXT;
+        ADD COLUMN IF NOT EXISTS photo_url TEXT,
+        ADD COLUMN IF NOT EXISTS fcm_token TEXT;
       `)
 
       // Migrate existing data if any (using wallet_address as temporary firebase_uid if needed, 
@@ -248,10 +249,10 @@ export async function getUserByFirebaseUid(firebaseUid: string) {
   return result.rows[0]
 }
 
-export async function updateUserProfile(userId: string, name: string, email: string, photoURL?: string) {
+export async function updateUserProfile(userId: string, name: string, email: string, photoURL?: string, fcmToken?: string) {
   const result = await query(
-    "UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email), photo_url = COALESCE($3, photo_url), updated_at = NOW() WHERE id = $4 RETURNING *",
-    [name, email, photoURL || null, userId]
+    "UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email), photo_url = COALESCE($3, photo_url), fcm_token = COALESCE($4, fcm_token), updated_at = NOW() WHERE id = $5 RETURNING *",
+    [name, email, photoURL || null, fcmToken || null, userId]
   )
   return result.rows[0]
 }

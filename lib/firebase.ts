@@ -15,5 +15,12 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const storage = getStorage(app);
+let messaging = null;
 
-export { app, auth, storage };
+if (typeof window !== "undefined") {
+    import("firebase/messaging").then(({ getMessaging }) => {
+        messaging = getMessaging(app);
+    });
+}
+
+export { app, auth, storage, messaging };
